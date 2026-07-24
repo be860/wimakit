@@ -107,7 +107,7 @@ export default function ProduceDetailPage() {
     <div className="min-h-screen bg-background">
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8 max-w-5xl">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-5xl">
         <Link href="/buyer/browse">
           <Button variant="ghost" size="sm" className="mb-6 gap-2">
             <ArrowLeft className="h-4 w-4" />

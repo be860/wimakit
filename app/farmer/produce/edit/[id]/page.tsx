@@ -128,7 +128,7 @@ export default function EditProducePage() {
         <div className="min-h-screen bg-background">
             <FarmerNav />
 
-            <main className="container mx-auto px-4 py-8 max-w-3xl">
+            <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-3xl">
                 <Link href="/farmer/produce">
                     <Button variant="ghost" size="sm" className="mb-6 gap-2">
                         <ArrowLeft className="h-4 w-4" />

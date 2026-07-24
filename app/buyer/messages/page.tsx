@@ -49,7 +49,7 @@ export default function BuyerMessagesPage() {
     <div className="min-h-screen bg-background">
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Messages</h1>
           <p className="text-muted-foreground">Chat with farmers about their produce</p>

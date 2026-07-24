@@ -73,7 +73,7 @@ export default function BuyerConversationPage() {
     <div className="min-h-screen bg-background">
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-4xl">
         <Link href="/buyer/messages">
           <Button variant="ghost" size="sm" className="mb-6 gap-2">
             <ArrowLeft className="h-4 w-4" />

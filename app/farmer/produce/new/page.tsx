@@ -107,7 +107,7 @@ export default function NewProducePage() {
     <div className="min-h-screen bg-background">
       <FarmerNav />
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-3xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Add New Produce</h1>
           <p className="text-muted-foreground">List your products for buyers to discover</p>
