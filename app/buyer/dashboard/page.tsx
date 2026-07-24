@@ -61,7 +61,7 @@ export default function BuyerDashboard() {
     <div className="min-h-screen bg-background">
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user?.name}!</h1>
           <p className="text-muted-foreground">Discover fresh produce from local farmers.</p>

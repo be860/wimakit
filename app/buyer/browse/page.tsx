@@ -75,7 +75,7 @@ export default function BuyerBrowsePage() {
     <div className="min-h-screen bg-background">
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Browse Produce</h1>
           <p className="text-muted-foreground">Find fresh produce from local farmers</p>
