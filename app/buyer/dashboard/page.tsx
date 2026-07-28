@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context"
 import { BuyerNav } from "@/components/buyer-nav"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Package, MessageSquare, Search, MapPin, ShoppingBag, DollarSign } from "lucide-react"
+import { Package, MessageSquare, Search, MapPin, ShoppingBag, ArrowRight, TrendingDown, TrendingUp, Minus } from "lucide-react"
 import Link from "next/link"
 import { produceAPI, messagesAPI, paymentAPI, type ProduceData, type ConversationData, type OrderData } from "@/lib/api"
 
@@ -51,123 +51,240 @@ export default function BuyerDashboard() {
   }, [user])
 
   if (authLoading || (isLoading && !user)) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F7F2E9" }}>
+        <div className="h-10 w-10 rounded-full border-3 border-[#1E3A5F]/30 border-t-[#1E3A5F] animate-spin" />
+      </div>
+    )
   }
 
   const unreadMessages = myConversations.reduce((sum, conv) => sum + conv.unreadCount, 0)
   const totalSpent = myOrders.reduce((sum, o) => sum + o.amount, 0)
 
+  const minPrice = availableProduce.length > 0 ? Math.min(...availableProduce.map((p) => p.price)) : 0
+  const maxPrice = availableProduce.length > 0 ? Math.max(...availableProduce.map((p) => p.price)) : 0
+  const avgPrice =
+    availableProduce.length > 0
+      ? Math.round(availableProduce.reduce((sum, p) => sum + p.price, 0) / availableProduce.length)
+      : 0
+
+  /* Category distribution */
+  const categoryMap = availableProduce.reduce((acc: Record<string, number>, p) => {
+    acc[p.category] = (acc[p.category] || 0) + 1
+    return acc
+  }, {})
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ background: "#F7F2E9", color: "#2B2420" }}>
       <BuyerNav />
 
-      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
+      {/* Main Content with responsive desktop sidebar offset */}
+      <main className="buyer-main-content min-h-screen transition-all duration-300 px-4 md:px-8 py-8 pb-24 md:pb-8 max-w-7xl">
+        {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user?.name}!</h1>
-          <p className="text-muted-foreground">Discover fresh produce from local farmers.</p>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#5C524B" }}>
+            BUYER DASHBOARD
+          </span>
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-[-0.02em] mt-1" style={{ color: "#2B2420" }}>
+            Welcome back, {user?.name}!
+          </h1>
+          <p className="text-base mt-1" style={{ color: "#5C524B" }}>
+            Fresh produce from farmers across Western Area Rural District.
+          </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Available Produce */}
+          <Card
+            className="border-2 rounded-2xl overflow-hidden"
+            style={{ borderColor: "#DDD3C0", background: "rgba(255,255,255,0.6)" }}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Available Produce</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle
+                className="text-xs font-semibold uppercase tracking-[0.08em]"
+                style={{ color: "#5C524B" }}
+              >
+                Available Produce
+              </CardTitle>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "#1E3A5F" }}
+              >
+                <Package className="h-5 w-5" style={{ color: "#F7F2E9" }} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{availableProduce.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Products ready to purchase</p>
+              <div className="font-display text-3xl md:text-4xl font-bold" style={{ color: "#2B2420" }}>
+                {availableProduce.length}
+              </div>
+              <p className="text-xs mt-1 font-medium" style={{ color: "#5C524B" }}>
+                Fresh crops ready to buy
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Active Chats */}
+          <Card
+            className="border-2 rounded-2xl overflow-hidden"
+            style={{ borderColor: "#DDD3C0", background: "rgba(255,255,255,0.6)" }}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Active Chats</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle
+                className="text-xs font-semibold uppercase tracking-[0.08em]"
+                style={{ color: "#5C524B" }}
+              >
+                Active Chats
+              </CardTitle>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "#1B4B3A" }}
+              >
+                <MessageSquare className="h-5 w-5" style={{ color: "#F7F2E9" }} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{myConversations.length}</div>
-              {unreadMessages > 0 && <p className="text-xs text-accent mt-1">{unreadMessages} unread message(s)</p>}
+              <div className="font-display text-3xl md:text-4xl font-bold" style={{ color: "#2B2420" }}>
+                {myConversations.length}
+              </div>
+              {unreadMessages > 0 ? (
+                <p className="text-xs mt-1 font-bold" style={{ color: "#B34A2E" }}>
+                  {unreadMessages} unread message(s)
+                </p>
+              ) : (
+                <p className="text-xs mt-1 font-medium" style={{ color: "#5C524B" }}>
+                  All messages read
+                </p>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Total Spent */}
+          <Card
+            className="border-2 rounded-2xl overflow-hidden sm:col-span-2 lg:col-span-1"
+            style={{ borderColor: "#DDD3C0", background: "rgba(255,255,255,0.6)" }}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Spent</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle
+                className="text-xs font-semibold uppercase tracking-[0.08em]"
+                style={{ color: "#5C524B" }}
+              >
+                Total Spent
+              </CardTitle>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "#E8A33D" }}
+              >
+                <ShoppingBag className="h-5 w-5" style={{ color: "#2B2420" }} />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">Le {totalSpent.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">On fresh produce</p>
+              <div className="font-display text-3xl md:text-4xl font-bold" style={{ color: "#1E3A5F" }}>
+                Le {totalSpent.toLocaleString()}
+              </div>
+              <p className="text-xs mt-1 font-medium" style={{ color: "#5C524B" }}>
+                On produce from local farms
+              </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid md:grid-cols-2 gap-4">
+        <div className="mb-10">
+          <h2 className="font-display text-xl font-bold mb-4" style={{ color: "#2B2420" }}>
+            Quick Actions
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
             <Link href="/buyer/browse">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <CardContent className="flex items-center gap-4 p-6">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Search className="h-6 w-6 text-primary" />
+              <div
+                className="rounded-2xl border-2 p-5 transition-all active:scale-[0.99] cursor-pointer"
+                style={{ borderColor: "#DDD3C0", background: "#1E3A5F" }}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ background: "rgba(247,242,233,0.15)" }}
+                  >
+                    <Search className="h-6 w-6" style={{ color: "#F7F2E9" }} />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Browse Produce</h3>
-                    <p className="text-sm text-muted-foreground">Find fresh products from farmers</p>
+                  <div className="flex-1">
+                    <h3 className="font-display text-lg font-bold" style={{ color: "#F7F2E9" }}>
+                      Browse Produce
+                    </h3>
+                    <p className="text-xs mt-0.5" style={{ color: "rgba(247,242,233,0.75)" }}>
+                      Rice, cassava, groundnuts, peppers and more
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                  <ArrowRight className="h-5 w-5" style={{ color: "#E8A33D" }} />
+                </div>
+              </div>
             </Link>
 
             <Link href="/buyer/messages">
-              <Card className="hover:border-primary transition-colors cursor-pointer">
-                <CardContent className="flex items-center gap-4 p-6">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <MessageSquare className="h-6 w-6 text-primary" />
+              <div
+                className="rounded-2xl border-2 p-5 transition-all active:scale-[0.99] cursor-pointer"
+                style={{ borderColor: "#DDD3C0", background: "#F7F2E9" }}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ background: "#EAE4D7" }}
+                  >
+                    <MessageSquare className="h-6 w-6" style={{ color: "#1E3A5F" }} />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">View Messages</h3>
-                    <p className="text-sm text-muted-foreground">Chat with farmers</p>
+                  <div className="flex-1">
+                    <h3 className="font-display text-lg font-bold" style={{ color: "#2B2420" }}>
+                      Farmer Messages
+                    </h3>
+                    <p className="text-xs mt-0.5" style={{ color: "#5C524B" }}>
+                      Negotiate prices and arrange pickup
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                  <ArrowRight className="h-5 w-5" style={{ color: "#1E3A5F" }} />
+                </div>
+              </div>
             </Link>
           </div>
         </div>
 
-        {/* Analytics Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Market Insights</h2>
+        {/* Market Insights */}
+        <div className="mb-10">
+          <h2 className="font-display text-xl font-bold mb-4" style={{ color: "#2B2420" }}>
+            Market Insights
+          </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {/* Category Availability */}
-            <Card>
+            <Card
+              className="border-2 rounded-2xl p-2"
+              style={{ borderColor: "#DDD3C0", background: "rgba(255,255,255,0.6)" }}
+            >
               <CardHeader>
-                <CardTitle className="text-base">Available by Category</CardTitle>
+                <CardTitle className="font-display text-base font-bold" style={{ color: "#2B2420" }}>
+                  Available by Crop Category
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {availableProduce.length > 0 ? (
-                  <div className="space-y-3">
-                    {Object.entries(
-                      availableProduce.reduce((acc: Record<string, number>, p) => {
-                        acc[p.category] = (acc[p.category] || 0) + 1
-                        return acc
-                      }, {})
-                    )
+                  <div className="space-y-4">
+                    {Object.entries(categoryMap)
                       .sort(([, a], [, b]) => b - a)
                       .map(([category, count]) => {
                         const percentage = (count / availableProduce.length) * 100
                         return (
                           <div key={category}>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-foreground font-medium">{category}</span>
-                              <span className="text-muted-foreground">{count} products</span>
+                            <div className="flex justify-between text-xs font-semibold mb-1">
+                              <span style={{ color: "#2B2420" }}>{category}</span>
+                              <span style={{ color: "#5C524B" }}>
+                                {count} products ({Math.round(percentage)}%)
+                              </span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                              className="w-full rounded-full h-2.5 overflow-hidden"
+                              style={{ background: "#EAE4D7" }}
+                            >
                               <div
-                                className="bg-primary h-2 rounded-full transition-all"
-                                style={{ width: `${percentage}%` }}
+                                className="h-full rounded-full transition-all"
+                                style={{ width: `${percentage}%`, background: "#1E3A5F" }}
                               />
                             </div>
                           </div>
@@ -175,45 +292,82 @@ export default function BuyerDashboard() {
                       })}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No products available yet.
+                  <p className="text-sm py-8 text-center" style={{ color: "#5C524B" }}>
+                    No produce available yet.
                   </p>
                 )}
               </CardContent>
             </Card>
 
             {/* Price Range Overview */}
-            <Card>
+            <Card
+              className="border-2 rounded-2xl p-2"
+              style={{ borderColor: "#DDD3C0", background: "rgba(255,255,255,0.6)" }}
+            >
               <CardHeader>
-                <CardTitle className="text-base">Price Range Overview</CardTitle>
+                <CardTitle className="font-display text-base font-bold" style={{ color: "#2B2420" }}>
+                  Price Range Today
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {availableProduce.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Lowest Price</span>
-                      <span className="text-lg font-bold text-green-600">
-                        Le {Math.min(...availableProduce.map((p) => p.price)).toLocaleString()}
+                  <div className="space-y-3">
+                    {/* Lowest */}
+                    <div
+                      className="flex items-center justify-between p-3 rounded-xl"
+                      style={{ background: "#EAE4D7" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#1B4B3A" }}>
+                          <TrendingDown className="h-4 w-4" style={{ color: "#F7F2E9" }} />
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: "#5C524B" }}>
+                          Lowest Price
+                        </span>
+                      </div>
+                      <span className="font-display text-base font-bold" style={{ color: "#1B4B3A" }}>
+                        Le {minPrice.toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Average Price</span>
-                      <span className="text-lg font-bold text-primary">
-                        Le{" "}
-                        {Math.round(
-                          availableProduce.reduce((sum, p) => sum + p.price, 0) / availableProduce.length
-                        ).toLocaleString()}
+
+                    {/* Average */}
+                    <div
+                      className="flex items-center justify-between p-3 rounded-xl"
+                      style={{ background: "#EAE4D7" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#1E3A5F" }}>
+                          <Minus className="h-4 w-4" style={{ color: "#F7F2E9" }} />
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: "#5C524B" }}>
+                          Market Average
+                        </span>
+                      </div>
+                      <span className="font-display text-base font-bold" style={{ color: "#1E3A5F" }}>
+                        Le {avgPrice.toLocaleString()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Highest Price</span>
-                      <span className="text-lg font-bold text-orange-600">
-                        Le {Math.max(...availableProduce.map((p) => p.price)).toLocaleString()}
+
+                    {/* Highest */}
+                    <div
+                      className="flex items-center justify-between p-3 rounded-xl"
+                      style={{ background: "#EAE4D7" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#B34A2E" }}>
+                          <TrendingUp className="h-4 w-4" style={{ color: "#F7F2E9" }} />
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color: "#5C524B" }}>
+                          Highest Price
+                        </span>
+                      </div>
+                      <span className="font-display text-base font-bold" style={{ color: "#B34A2E" }}>
+                        Le {maxPrice.toLocaleString()}
                       </span>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">
+                  <p className="text-sm py-8 text-center" style={{ color: "#5C524B" }}>
                     No products available yet.
                   </p>
                 )}
@@ -225,53 +379,95 @@ export default function BuyerDashboard() {
         {/* Featured Produce */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-foreground">Featured Produce</h2>
+            <h2 className="font-display text-xl font-bold" style={{ color: "#2B2420" }}>
+              Featured Produce
+            </h2>
             <Link href="/buyer/browse">
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="font-semibold text-xs uppercase tracking-[0.08em]"
+                style={{ color: "#1E3A5F" }}
+              >
                 View All
               </Button>
             </Link>
           </div>
+
           {isLoading ? (
-            <div className="text-center py-12">Loading produce...</div>
+            <div className="text-center py-12" style={{ color: "#5C524B" }}>
+              Loading market listings...
+            </div>
           ) : availableProduce.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">No produce available at the moment.</div>
+            <div className="text-center py-12" style={{ color: "#5C524B" }}>
+              No produce available at the moment. Check back soon.
+            </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {availableProduce.slice(0, 6).map((produce) => (
-                <Card key={produce.id}>
+                <Card
+                  key={produce.id}
+                  className="border-2 rounded-2xl overflow-hidden transition-all hover:border-[#1E3A5F]"
+                  style={{ borderColor: "#DDD3C0", background: "#F7F2E9" }}
+                >
                   <CardContent className="p-0">
-                    <div className="aspect-video relative rounded-t-lg overflow-hidden bg-muted">
+                    {/* Produce image */}
+                    <div className="aspect-video relative rounded-t-2xl overflow-hidden" style={{ background: "#EAE4D7" }}>
                       <img
                         src={produce.imageUrl || "/placeholder.svg"}
                         alt={produce.name}
                         className="object-cover w-full h-full"
                       />
+                      {/* Category badge */}
+                      <span
+                        className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-[0.08em] px-2 py-0.5 rounded"
+                        style={{ background: "rgba(27,75,58,0.85)", color: "#F7F2E9" }}
+                      >
+                        {produce.category}
+                      </span>
                     </div>
+
                     <div className="p-4">
-                      <h3 className="font-semibold text-foreground text-lg mb-1">{produce.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{produce.category}</p>
-                      <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-display text-lg font-bold mt-0.5" style={{ color: "#2B2420" }}>
+                        {produce.name}
+                      </h3>
+
+                      {/* Location */}
+                      {(produce.location || produce.farmerLocation) && (
+                        <div className="flex items-center gap-1.5 mt-1 mb-3">
+                          <MapPin className="h-3 w-3" style={{ color: "#5C524B" }} />
+                          <span className="text-xs" style={{ color: "#5C524B" }}>
+                            {produce.location || produce.farmerLocation}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Price & Quantity */}
+                      <div
+                        className="flex items-center justify-between pt-3 border-t"
+                        style={{ borderColor: "#DDD3C0" }}
+                      >
                         <div>
-                          <span className="text-xl font-bold text-primary">
+                          <span className="font-display text-xl font-bold" style={{ color: "#1E3A5F" }}>
                             Le {produce.price.toLocaleString()}
                           </span>
-                          <span className="text-sm text-muted-foreground">/{produce.unit}</span>
+                          <span className="text-xs ml-1" style={{ color: "#5C524B" }}>
+                            /{produce.unit}
+                          </span>
                         </div>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs font-semibold" style={{ color: "#5C524B" }}>
                           {produce.quantity} {produce.unit}
                         </span>
                       </div>
-                      <div className="space-y-2 mb-4 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          <span>{produce.location || produce.farmerLocation}</span>
-                        </div>
-                      </div>
+
+                      {/* CTA */}
                       <Link href={`/buyer/browse/${produce.id}`}>
-                        <Button className="w-full" size="sm">
+                        <button
+                          className="mt-3 w-full h-10 rounded-xl text-sm font-bold transition-opacity active:scale-[0.99]"
+                          style={{ background: "#1E3A5F", color: "#F7F2E9" }}
+                        >
                           View Details
-                        </Button>
+                        </button>
                       </Link>
                     </div>
                   </CardContent>

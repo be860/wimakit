@@ -7,7 +7,10 @@ export interface User {
   email: string
   password: string // In production, this would be hashed on the backend
   role: UserRole
-  name: string
+  firstName: string
+  lastName: string
+  /** Computed display name */
+  name?: string
   phone: string
   location: string
   createdAt: string

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WiMakit.API.Services;
 
 namespace WiMakit.API.Controllers
 {
@@ -8,14 +9,14 @@ namespace WiMakit.API.Controllers
     [Authorize]
     public class UploadController : ControllerBase
     {
-        private readonly IWebHostEnvironment _environment;
+        private readonly IFileStorageService _fileStorageService;
 
-        public UploadController(IWebHostEnvironment environment)
+        public UploadController(IFileStorageService fileStorageService)
         {
-            _environment = environment;
+            _fileStorageService = fileStorageService;
         }
 
-        [Authorize(Roles = "farmer")]
+        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
         [HttpPost]
         public async Task<ActionResult<object>> UploadImage(IFormFile file)
         {
@@ -38,22 +39,12 @@ namespace WiMakit.API.Controllers
                 return BadRequest(new { message = "File size exceeds 5MB limit." });
             }
 
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads");
-            if (!Directory.Exists(uploadsPath))
+            var imageUrl = await _fileStorageService.UploadImageAsync(file);
+
+            if (imageUrl == null)
             {
-                Directory.CreateDirectory(uploadsPath);
+                return StatusCode(502, new { message = "Could not upload image right now. Please try again shortly." });
             }
-
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
-            var imageUrl = $"{baseUrl}/uploads/{fileName}";
 
             return Ok(new { imageUrl });
         }

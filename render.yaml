@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: wimakit-api
+    runtime: dotnet
+    rootDir: backend/WiMakit.API
+    buildCommand: dotnet publish -c Release -o out
+    startCommand: dotnet out/WiMakit.API.dll
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:$PORT
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: WiMakit
+      - key: Jwt__Audience
+        value: WiMakit-Users
+      - key: Google__ClientId
+        sync: false
+      - key: Smtp__Server
+        value: smtp.gmail.com
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__SenderEmail
+        sync: false
+      - key: Smtp__SenderName
+        value: WiMakit
+      - key: Smtp__Username
+        sync: false
+      - key: Smtp__Password
+        sync: false
+      - key: Smtp__EnableSsl
+        value: "true"
+      - key: Cors__AllowedOrigins__0
+        value: https://wimakit.vercel.app
+      - key: Cors__AllowedOrigins__1
+        value: http://localhost:3000

@@ -18,6 +18,10 @@ namespace WiMakit.API.Models
         public int ProduceId { get; set; }
 
         [Required]
+        [Range(1, int.MaxValue)]
+        public int Quantity { get; set; }
+
+        [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 

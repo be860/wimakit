@@ -1,7 +1,7 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:5001/api"
 
-// Auth Token Management
+// ── Auth Token Management ────────────────────────────────────────────────────
 export const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null
   return localStorage.getItem("authToken")
@@ -17,7 +17,37 @@ export const removeAuthToken = (): void => {
   localStorage.removeItem("authToken")
 }
 
-// API Request Helper
+// ── Request Deduplication Cache ──────────────────────────────────────────────
+const inflight = new Map<string, Promise<unknown>>()
+
+function dedupGet<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (inflight.has(key)) return inflight.get(key) as Promise<T>
+  const p = fn().finally(() => {
+    setTimeout(() => inflight.delete(key), 2000)
+  })
+  inflight.set(key, p)
+  return p
+}
+
+// ── Exponential Back-off Retry ───────────────────────────────────────────────
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  let lastError: Error = new Error("Request failed")
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err as Error
+      if (lastError.message?.match(/^HTTP 4\d\d/)) throw lastError
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * 2 ** attempt + Math.random() * 200, 8000)
+        await new Promise((r) => setTimeout(r, delay))
+      }
+    }
+  }
+  throw lastError
+}
+
+// ── Core API Request Helper ──────────────────────────────────────────────────
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
 
@@ -27,24 +57,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...options.headers,
   }
 
-  const url = `${API_BASE_URL}${endpoint}`.replace(/([^:]\/)\/+/g, "$1")
+  const url = `${API_BASE_URL}${endpoint}`.replace(/([^:]\/)\/{2,}/g, "$1")
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
+  const response = await fetch(url, { ...options, headers })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Request failed" }))
+    const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }))
     throw new Error(error.message || `HTTP ${response.status}`)
   }
 
   return response.json()
 }
 
-// Authentication API
+// ── Authentication API ───────────────────────────────────────────────────────
 export interface RegisterData {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   password: string
   role: "farmer" | "buyer"
@@ -61,44 +89,86 @@ export interface LoginData {
   password: string
 }
 
+export interface GoogleAuthData {
+  idToken: string
+  role?: "farmer" | "buyer"
+  phone?: string
+  location?: string
+}
+
+export interface AuthUser {
+  id: number
+  firstName: string
+  lastName: string
+  fullName?: string
+  email: string
+  role: "farmer" | "buyer"
+  phone?: string
+  location?: string
+  farmSize?: string
+  farmingExperience?: string
+  businessName?: string
+  businessType?: string
+  isEmailVerified: boolean
+  hasGoogleAuth: boolean
+}
+
 export interface AuthResponse {
   token: string
-  user: {
-    id: number
-    name: string
-    email: string
-    role: "farmer" | "buyer"
-    phone?: string
-    location?: string
-    farmSize?: string
-    farmingExperience?: string
-    businessName?: string
-    businessType?: string
-    isEmailVerified: boolean
-  }
+  user: AuthUser
 }
 
 export const authAPI = {
   register: (data: RegisterData) =>
-    apiRequest<AuthResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    withRetry(() =>
+      apiRequest<AuthResponse>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
 
   login: (data: LoginData) =>
-    apiRequest<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    withRetry(() =>
+      apiRequest<AuthResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
+
+  googleAuth: (data: GoogleAuthData) =>
+    withRetry(() =>
+      apiRequest<AuthResponse>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
 
   verifyEmail: (token: string) =>
-    apiRequest<{ message: string }>("/auth/verify-email", {
-      method: "POST",
-      body: JSON.stringify({ token }),
-    }),
+    withRetry(() =>
+      apiRequest<{ message: string }>("/auth/verify-email", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      })
+    ),
+
+  verifyOtp: (email: string, otp: string) =>
+    withRetry(() =>
+      apiRequest<{ message: string }>("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
+      })
+    ),
+
+  resendOtp: (email: string) =>
+    withRetry(() =>
+      apiRequest<{ message: string }>("/auth/resend-otp", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      })
+    ),
 }
 
-// Produce API
+// ── Produce API ──────────────────────────────────────────────────────────────
 export interface ProduceData {
   id: number
   farmerId: number
@@ -137,32 +207,39 @@ export const produceAPI = {
     if (params?.search) searchParams.set("search", params.search)
     if (params?.category) searchParams.set("category", params.category)
     const query = searchParams.toString()
-    return apiRequest<ProduceData[]>(`/produce${query ? `?${query}` : ""}`)
+    const endpoint = `/produce${query ? `?${query}` : ""}`
+    return dedupGet<ProduceData[]>(endpoint, () => apiRequest<ProduceData[]>(endpoint))
   },
 
-  getById: (id: number) => apiRequest<ProduceData>(`/produce/${id}`),
+  getById: (id: number) =>
+    dedupGet<ProduceData>(`/produce/${id}`, () => apiRequest<ProduceData>(`/produce/${id}`)),
 
-  getByFarmer: (farmerId: number) => apiRequest<ProduceData[]>(`/produce/farmer/${farmerId}`),
+  getByFarmer: (farmerId: number) =>
+    dedupGet<ProduceData[]>(`/produce/farmer/${farmerId}`, () =>
+      apiRequest<ProduceData[]>(`/produce/farmer/${farmerId}`)
+    ),
 
   create: (data: CreateProduceData) =>
-    apiRequest<ProduceData>("/produce", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    withRetry(() =>
+      apiRequest<ProduceData>("/produce", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
 
   update: (id: number, data: UpdateProduceData) =>
-    apiRequest<ProduceData>(`/produce/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    withRetry(() =>
+      apiRequest<ProduceData>(`/produce/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      })
+    ),
 
   delete: (id: number) =>
-    apiRequest<void>(`/produce/${id}`, {
-      method: "DELETE",
-    }),
+    apiRequest<void>(`/produce/${id}`, { method: "DELETE" }),
 }
 
-// Messages API
+// ── Messages API ─────────────────────────────────────────────────────────────
 export interface MessageData {
   id: number
   senderId: number
@@ -195,9 +272,13 @@ export interface SendMessageData {
 }
 
 export const messagesAPI = {
-  getConversations: () => apiRequest<ConversationData[]>("/messages/conversations"),
+  getConversations: () =>
+    dedupGet<ConversationData[]>("/messages/conversations", () =>
+      apiRequest<ConversationData[]>("/messages/conversations")
+    ),
 
-  getConversation: (otherUserId: number) => apiRequest<MessageData[]>(`/messages/conversation/${otherUserId}`),
+  getConversation: (otherUserId: number) =>
+    apiRequest<MessageData[]>(`/messages/conversation/${otherUserId}`),
 
   send: (data: SendMessageData) =>
     apiRequest<MessageData>("/messages", {
@@ -206,12 +287,10 @@ export const messagesAPI = {
     }),
 
   markAsRead: (messageId: number) =>
-    apiRequest<void>(`/messages/${messageId}/read`, {
-      method: "PUT",
-    }),
+    apiRequest<void>(`/messages/${messageId}/read`, { method: "PUT" }),
 }
 
-// Image Upload Helper
+// ── Image Upload ─────────────────────────────────────────────────────────────
 export const uploadImage = async (file: File): Promise<string> => {
   const token = getAuthToken()
   const formData = new FormData()
@@ -219,9 +298,7 @@ export const uploadImage = async (file: File): Promise<string> => {
 
   const response = await fetch(`${API_BASE_URL}/upload`, {
     method: "POST",
-    headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
+    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
     body: formData,
   })
 
@@ -234,6 +311,7 @@ export const uploadImage = async (file: File): Promise<string> => {
   return data.imageUrl
 }
 
+// ── Payment API ──────────────────────────────────────────────────────────────
 export interface OrderData {
   id: number
   produceId: number
@@ -256,12 +334,20 @@ export interface PaymentRequest {
 
 export const paymentAPI = {
   processPayment: (data: PaymentRequest) =>
-    apiRequest<{ success: boolean; message: string }>("/payment/process", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+    withRetry(() =>
+      apiRequest<{ success: boolean; message: string }>("/payment/process", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+    ),
 
-  getBuyerHistory: () => apiRequest<OrderData[]>("/payment/buyer/history"),
+  getBuyerHistory: () =>
+    dedupGet<OrderData[]>("/payment/buyer/history", () =>
+      apiRequest<OrderData[]>("/payment/buyer/history")
+    ),
 
-  getFarmerSales: () => apiRequest<OrderData[]>("/payment/farmer/sales"),
+  getFarmerSales: () =>
+    dedupGet<OrderData[]>("/payment/farmer/sales", () =>
+      apiRequest<OrderData[]>("/payment/farmer/sales")
+    ),
 }

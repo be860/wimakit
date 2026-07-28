@@ -5,7 +5,7 @@ namespace WiMakit.API.Services
 {
     public interface IEmailService
     {
-        Task SendVerificationEmailAsync(string email, string token);
+        Task<bool> SendVerificationEmailAsync(string email, string token);
     }
 
     public class EmailService : IEmailService
@@ -19,7 +19,7 @@ namespace WiMakit.API.Services
             _configuration = configuration;
         }
 
-        public async Task SendVerificationEmailAsync(string email, string token)
+        public async Task<bool> SendVerificationEmailAsync(string email, string token)
         {
             try
             {
@@ -32,14 +32,21 @@ namespace WiMakit.API.Services
                 var enableSsl = bool.Parse(_configuration["Smtp:EnableSsl"] ?? "true");
 
                 _logger.LogInformation($"Attempting to send email via {smtpServer}:{smtpPort} for {username}");
-                
+
                 if (string.IsNullOrEmpty(password))
                 {
                     _logger.LogWarning("SMTP Password is empty in configuration!");
                 }
-                else
+
+                if (string.IsNullOrWhiteSpace(senderEmail))
                 {
-                    _logger.LogInformation($"Password length: {password.Length} chars");
+                    _logger.LogError("Smtp:SenderEmail is not configured. Cannot send verification email to {Email}.", email);
+
+                    _logger.LogWarning("************************************************************");
+                    _logger.LogWarning($"EMAIL FALLBACK - Verification token for {email}: {token}");
+                    _logger.LogWarning("************************************************************");
+
+                    return false;
                 }
 
                 // Create HTML email body
@@ -65,6 +72,7 @@ namespace WiMakit.API.Services
                 await smtpClient.SendMailAsync(mailMessage);
                 
                 _logger.LogInformation($"Verification email successfully sent to: {email}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -74,6 +82,8 @@ namespace WiMakit.API.Services
                 _logger.LogWarning("************************************************************");
                 _logger.LogWarning($"EMAIL FALLBACK - Verification token for {email}: {token}");
                 _logger.LogWarning("************************************************************");
+
+                return false;
             }
         }
 
@@ -122,7 +132,7 @@ namespace WiMakit.API.Services
                             </table>
                             
                             <p style='margin: 0 0 20px 0; color: #6b7280; font-size: 14px; line-height: 1.6;'>
-                                Enter this code on the verification page to activate your account. This code will expire in 24 hours.
+                                Enter this code on the verification page to activate your account. This code will expire in 15 minutes.
                             </p>
                             
                             <div style='margin: 30px 0; padding: 20px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;'>

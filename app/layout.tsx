@@ -1,12 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { AuthProvider } from "@/lib/auth-context"
-
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+import { GoogleProvider } from "@/components/google-provider"
 
 export const metadata: Metadata = {
   title: "WiMakit - Farmer Marketplace",
@@ -25,9 +22,20 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" className="scroll-smooth">
+      <body className="font-sans antialiased">
+        {/* Hidden SVG filter for Gara Bleed organic motif */}
+        <svg className="absolute w-0 h-0" aria-hidden="true">
+          <defs>
+            <filter id="gara-bleed">
+              <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="2" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="35" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
+        <GoogleProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </GoogleProvider>
         <Analytics />
       </body>
     </html>

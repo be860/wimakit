@@ -131,7 +131,7 @@ namespace WiMakit.API.Services
             {
                 Id = produce.Id,
                 FarmerId = produce.FarmerId,
-                FarmerName = produce.Farmer?.Name ?? "",
+                FarmerName = produce.Farmer?.FullName ?? "",
                 FarmerLocation = produce.Farmer?.Location ?? "",
                 Name = produce.Name,
                 Category = produce.Category,

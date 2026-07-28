@@ -1,0 +1,37 @@
+# Build results
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+.vs/
+.vscode/
+
+# Rider / JetBrains
+.idea/
+
+# Local secrets / environment overrides — never commit real values.
+# appsettings.json should stay in the repo with BLANK secret fields only.
+# Real values belong in Render environment variables or user-secrets locally.
+appsettings.Local.json
+appsettings.*.local.json
+.env
+.env.*
+
+# Uploaded user content (should not be committed; Render's disk is ephemeral anyway — see README)
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test results
+[Tt]est[Rr]esult*/
+coverage/

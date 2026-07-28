@@ -1,33 +1,33 @@
 import { Suspense } from "react"
 import Link from "next/link"
-import { Sprout } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import VerifyEmailContent from "@/components/verify-email-content"
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <Link href="/" className="flex items-center gap-2 mb-2">
-            <Sprout className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">WiMakit</span>
-          </Link>
-          <p className="text-muted-foreground">Email Verification</p>
-        </div>
+    <div className="min-h-screen flex flex-col justify-between" style={{ background: "#F7F2E9", color: "#2B2420" }}>
+      {/* Back link */}
+      <div className="px-5 pt-5">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold transition-colors"
+          style={{ color: "#5C524B" }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back</span>
+        </Link>
+      </div>
 
-        <Suspense fallback={<div className="text-center">Loading...</div>}>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <Suspense fallback={<div className="text-center" style={{ color: "#5C524B" }}>Loading verification form...</div>}>
           <VerifyEmailContent />
         </Suspense>
-
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>
-            Need help?{" "}
-            <Link href="/" className="text-primary hover:underline font-medium">
-              Contact Support
-            </Link>
-          </p>
-        </div>
       </div>
+
+      <footer className="py-6 text-center text-xs" style={{ color: "#5C524B", opacity: 0.6 }}>
+        <p>&copy; {new Date().getFullYear()} WiMakit. Sierra Leone.</p>
+      </footer>
     </div>
   )
 }

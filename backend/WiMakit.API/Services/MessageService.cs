@@ -31,7 +31,7 @@ namespace WiMakit.API.Services
                 .Select(g => new ConversationDTO
                 {
                     UserId = g.Key,
-                    UserName = g.First().SenderId == userId ? g.First().Receiver!.Name : g.First().Sender!.Name,
+                    UserName = g.First().SenderId == userId ? g.First().Receiver!.FullName : g.First().Sender!.FullName,
                     UserLocation = g.First().SenderId == userId ? g.First().Receiver?.Location : g.First().Sender?.Location,
                     UserRole = g.First().SenderId == userId ? g.First().Receiver!.Role : g.First().Sender!.Role,
                     LastMessage = g.First().Content,
@@ -117,9 +117,9 @@ namespace WiMakit.API.Services
             {
                 Id = message.Id,
                 SenderId = message.SenderId,
-                SenderName = message.Sender?.Name ?? "",
+                SenderName = message.Sender?.FullName ?? "",
                 ReceiverId = message.ReceiverId,
-                ReceiverName = message.Receiver?.Name ?? "",
+                ReceiverName = message.Receiver?.FullName ?? "",
                 ProduceId = message.ProduceId,
                 ProduceName = message.Produce?.Name,
                 Content = message.Content,

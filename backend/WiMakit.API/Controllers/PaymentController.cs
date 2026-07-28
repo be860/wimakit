@@ -1,7 +1,7 @@
 using WiMakit.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using WiMakit.API.Extensions;
 
 namespace WiMakit.API.Controllers
 {
@@ -17,37 +17,37 @@ namespace WiMakit.API.Controllers
             _paymentService = paymentService;
         }
 
-        [Authorize(Roles = "buyer")]
+        [Authorize(Roles = "buyer", Policy = "VerifiedEmail")]
         [HttpPost("process")]
         public async Task<IActionResult> ProcessPayment(PaymentRequest request)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             request.BuyerId = userId;
 
             var result = await _paymentService.ProcessPaymentAsync(request);
 
-            if (result)
+            if (result.Success)
             {
-                return Ok(new { success = true, message = "Payment successful" });
+                return Ok(new { success = true, message = result.Message });
             }
 
-            return BadRequest(new { success = false, message = "Payment failed" });
+            return BadRequest(new { success = false, message = result.Message });
         }
 
         [Authorize(Roles = "buyer")]
         [HttpGet("buyer/history")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetBuyerHistory()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             var history = await _paymentService.GetBuyerOrdersAsync(userId);
             return Ok(history);
         }
 
-        [Authorize]
+        [Authorize(Roles = "farmer")]
         [HttpGet("farmer/sales")]
         public async Task<ActionResult<IEnumerable<OrderDTO>>> GetFarmerSales()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             var sales = await _paymentService.GetFarmerSalesAsync(userId);
             return Ok(sales);
         }

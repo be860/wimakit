@@ -1,8 +1,11 @@
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using WiMakit.API.Data;
 using WiMakit.API.DTOs;
@@ -18,36 +21,44 @@ namespace WiMakit.API.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
-        
-        public AuthController(AppDbContext context, IConfiguration configuration, IEmailService emailService)
+        private readonly ILogger<AuthController> _logger;
+
+        public AuthController(
+            AppDbContext context,
+            IConfiguration configuration,
+            IEmailService emailService,
+            ILogger<AuthController> logger)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
+            _logger = logger;
         }
-        
+
+        // ── Register ──────────────────────────────────────────────────────────
         [HttpPost("register")]
+        [EnableRateLimiting("auth-register")]
         public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
         {
-            // Check if email already exists
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-            {
-                return BadRequest(new { message = "Email already registered" });
-            }
-            
-            // Hash password
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var role = request.Role.Trim().ToLowerInvariant();
+
+            if (role is not ("farmer" or "buyer"))
+                return BadRequest(new { message = "Role must be 'farmer' or 'buyer'." });
+
+            if (await _context.Users.AnyAsync(u => u.Email == normalizedEmail))
+                return BadRequest(new { message = "Email is already registered" });
+
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-            
-            // Generate email verification token (6-digit OTP)
-            var verificationToken = new Random().Next(100000, 999999).ToString();
-            
-            // Create user
+            var verificationToken = GenerateOtp();
+
             var user = new User
             {
-                Name = request.Name,
-                Email = request.Email,
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                Email = normalizedEmail,
                 PasswordHash = passwordHash,
-                Role = request.Role,
+                Role = role,
                 Phone = request.Phone,
                 Location = request.Location,
                 FarmSize = request.FarmSize,
@@ -56,119 +67,268 @@ namespace WiMakit.API.Controllers
                 BusinessType = request.BusinessType,
                 IsEmailVerified = false,
                 EmailVerificationToken = verificationToken,
-                EmailVerificationExpiry = DateTime.UtcNow.AddHours(24)
+                EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15)
             };
-            
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            
-            // Send verification email with token
-            await _emailService.SendVerificationEmailAsync(user.Email, verificationToken);
-            
-            var userDto = MapUserToDTO(user);
-            var token = GenerateJwtToken(user);
-            
-            return Ok(new AuthResponse { Token = token, User = userDto });
+
+            var emailSent = await _emailService.SendVerificationEmailAsync(user.Email, verificationToken);
+            if (!emailSent)
+            {
+                _logger.LogWarning("Verification email could not be sent to {Email}", user.Email);
+            }
+
+            // Token is returned so the frontend can persist session state during OTP verification.
+            // Protected endpoints require the VerifiedEmail policy.
+            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
         }
-        
+
+        // ── Login ─────────────────────────────────────────────────────────────
         [HttpPost("login")]
+        [EnableRateLimiting("auth-login")]
         public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
         {
-            // Find user by email
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == request.Email.Trim().ToLowerInvariant());
+
+            if (user == null || user.PasswordHash == null)
+                return Unauthorized(new { message = "Invalid email or password" });
+
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+                return Unauthorized(new { message = "Invalid email or password" });
+
+            if (!user.IsEmailVerified)
+                return Unauthorized(new { message = "Please verify your email before logging in" });
+
+            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
+        }
+
+        // ── Google OAuth ──────────────────────────────────────────────────────
+        [HttpPost("google")]
+        [EnableRateLimiting("auth-login")]
+        public async Task<ActionResult<AuthResponse>> GoogleAuth(GoogleAuthRequest request)
+        {
+            var googleClientId = _configuration["Google:ClientId"];
+            if (string.IsNullOrWhiteSpace(googleClientId))
+                return StatusCode(503, new { message = "Google sign-in is not configured." });
+
+            GoogleJsonWebSignature.Payload payload;
+
+            try
+            {
+                var settings = new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = new[] { googleClientId }
+                };
+                payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+            }
+            catch (InvalidJwtException ex)
+            {
+                _logger.LogWarning("Invalid Google ID token: {Message}", ex.Message);
+                return Unauthorized(new { message = "Invalid Google token. Please try again." });
+            }
+
+            var email = payload.Email.Trim().ToLowerInvariant();
+            var googleId = payload.Subject;
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.GoogleId == googleId)
+                    ?? await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
             if (user == null)
             {
-                return Unauthorized(new { message = "Invalid email or password" });
+                var role = request.Role?.Trim().ToLowerInvariant();
+                if (role is not ("farmer" or "buyer"))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Please select a role (farmer or buyer) to continue with Google.",
+                        code = "ROLE_REQUIRED"
+                    });
+                }
+
+                user = new User
+                {
+                    FirstName = (payload.GivenName ?? email.Split('@')[0]).Trim(),
+                    LastName = (payload.FamilyName ?? "").Trim(),
+                    Email = email,
+                    GoogleId = googleId,
+                    PasswordHash = null,
+                    Role = role,
+                    Phone = request.Phone,
+                    Location = request.Location,
+                    IsEmailVerified = true,
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
             }
-            
-            // Verify password
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            else
             {
-                return Unauthorized(new { message = "Invalid email or password" });
+                if (user.GoogleId == null)
+                {
+                    user.GoogleId = googleId;
+                    user.IsEmailVerified = true;
+                    user.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                }
             }
-            
-            // Check if email is verified
-            if (!user.IsEmailVerified)
-            {
-                return Unauthorized(new { message = "Please verify your email before logging in" });
-            }
-            
-            var userDto = MapUserToDTO(user);
-            var token = GenerateJwtToken(user);
-            
-            return Ok(new AuthResponse { Token = token, User = userDto });
+
+            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
         }
-        
+
+        // ── Verify Email / Token (legacy token-only flow) ─────────────────────
         [HttpPost("verify-email")]
+        [EnableRateLimiting("auth-login")]
         public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailVerificationToken == request.Token);
-            
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.EmailVerificationToken == request.Token);
+
             if (user == null)
-            {
                 return BadRequest(new { message = "Invalid verification token" });
-            }
-            
+
             if (user.EmailVerificationExpiry < DateTime.UtcNow)
-            {
-                return BadRequest(new { message = "Verification token has expired" });
-            }
-            
+                return BadRequest(new { message = "Verification token has expired. Please request a new code." });
+
             user.IsEmailVerified = true;
             user.EmailVerificationToken = null;
             user.EmailVerificationExpiry = null;
             user.UpdatedAt = DateTime.UtcNow;
-            
+
             await _context.SaveChangesAsync();
-            
+
             return Ok(new { message = "Email verified successfully" });
         }
-        
+
+        // ── Verify OTP (Email + 6-digit Code) ─────────────────────────────────
+        [HttpPost("verify-otp")]
+        [EnableRateLimiting("auth-login")]
+        public async Task<ActionResult<AuthResponse>> VerifyOtp(VerifyOtpRequest request)
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+            if (user == null)
+                return BadRequest(new { message = "Account not found for this email address." });
+
+            if (user.IsEmailVerified)
+            {
+                return Ok(new AuthResponse
+                {
+                    Token = GenerateJwtToken(user),
+                    User = MapUserToDTO(user),
+                    Message = "Account is already verified. You can log in."
+                });
+            }
+
+            if (user.EmailVerificationToken != request.Otp)
+                return BadRequest(new { message = "Invalid OTP code. Please check your email and try again." });
+
+            if (user.EmailVerificationExpiry < DateTime.UtcNow)
+                return BadRequest(new { message = "OTP code has expired. Please click 'Resend Code'." });
+
+            user.IsEmailVerified = true;
+            user.EmailVerificationToken = null;
+            user.EmailVerificationExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new AuthResponse
+            {
+                Token = GenerateJwtToken(user),
+                User = MapUserToDTO(user),
+                Message = "Email verified successfully! You can now log in."
+            });
+        }
+
+        // ── Resend OTP ────────────────────────────────────────────────────────
+        [HttpPost("resend-otp")]
+        [EnableRateLimiting("auth-register")]
+        public async Task<IActionResult> ResendOtp(ResendOtpRequest request)
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+            if (user == null)
+                return BadRequest(new { message = "No account found with this email address." });
+
+            if (user.IsEmailVerified)
+                return BadRequest(new { message = "Email is already verified. You can log in." });
+
+            var newOtp = GenerateOtp();
+            user.EmailVerificationToken = newOtp;
+            user.EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            var emailSent = await _emailService.SendVerificationEmailAsync(user.Email, newOtp);
+            if (!emailSent)
+            {
+                return StatusCode(503, new { message = "Could not send verification email. Please try again shortly." });
+            }
+
+            return Ok(new { message = "A new 6-digit OTP code has been sent to your email." });
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+        private static string GenerateOtp()
+        {
+            return RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        }
+
         private string GenerateJwtToken(User user)
         {
-            var jwtKey = _configuration["Jwt:Key"];
-            var jwtIssuer = _configuration["Jwt:Issuer"];
-            var jwtAudience = _configuration["Jwt:Audience"];
-            
-            var claims = new[]
+            var jwtKey = _configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException("JWT Key is not configured");
+
+            var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email),
+                new(JwtRegisteredClaimNames.GivenName, user.FirstName),
+                new(JwtRegisteredClaimNames.FamilyName, user.LastName),
+                new("role", user.Role),
+                new("email_verified", user.IsEmailVerified ? "true" : "false"),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
-            
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            
+
             var token = new JwtSecurityToken(
-                issuer: jwtIssuer,
-                audience: jwtAudience,
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddDays(7),
                 signingCredentials: creds
             );
-            
+
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-        
-        private UserDTO MapUserToDTO(User user)
+
+        private static UserDTO MapUserToDTO(User user) => new()
         {
-            return new UserDTO
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email,
-                Role = user.Role,
-                Phone = user.Phone,
-                Location = user.Location,
-                FarmSize = user.FarmSize,
-                FarmingExperience = user.FarmingExperience,
-                BusinessName = user.BusinessName,
-                BusinessType = user.BusinessType,
-                IsEmailVerified = user.IsEmailVerified
-            };
-        }
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Role = user.Role,
+            Phone = user.Phone,
+            Location = user.Location,
+            FarmSize = user.FarmSize,
+            FarmingExperience = user.FarmingExperience,
+            BusinessName = user.BusinessName,
+            BusinessType = user.BusinessType,
+            IsEmailVerified = user.IsEmailVerified,
+            HasGoogleAuth = user.GoogleId != null
+        };
     }
 }

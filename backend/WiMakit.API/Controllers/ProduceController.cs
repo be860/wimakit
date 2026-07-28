@@ -1,10 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using WiMakit.API.Data;
+using WiMakit.API.Extensions;
 using WiMakit.API.DTOs;
-using WiMakit.API.Models;
 using WiMakit.API.Services;
 
 namespace WiMakit.API.Controllers
@@ -20,7 +17,6 @@ namespace WiMakit.API.Controllers
         {
             _produceService = produceService;
         }
-        [Authorize]
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<ProduceDTO>>> GetAllProduce(
@@ -31,7 +27,6 @@ namespace WiMakit.API.Controllers
             return Ok(produces);
         }
 
-        [Authorize]
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<ActionResult<ProduceDTO>> GetProduceById(int id)
@@ -55,21 +50,20 @@ namespace WiMakit.API.Controllers
         }
         
         [HttpPost]
-        [Authorize(Roles = "farmer")]
+        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
         public async Task<ActionResult<ProduceDTO>> CreateProduce(CreateProduceRequest request)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             var produce = await _produceService.CreateProduceAsync(userId, request);
             
             return CreatedAtAction(nameof(GetProduceById), new { id = produce.Id }, produce);
         }
 
-        [Authorize]
         [HttpPut("{id}")]
-        [Authorize(Roles = "farmer")]
+        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
         public async Task<ActionResult<ProduceDTO>> UpdateProduce(int id, UpdateProduceRequest request)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             var produce = await _produceService.UpdateProduceAsync(id, userId, request);
             
             if (produce == null)
@@ -80,12 +74,11 @@ namespace WiMakit.API.Controllers
             return Ok(produce);
         }
 
-        [Authorize]
         [HttpDelete("{id}")]
-        [Authorize(Roles = "farmer")]
+        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
         public async Task<IActionResult> DeleteProduce(int id)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = User.GetUserId();
             var result = await _produceService.DeleteProduceAsync(id, userId);
             
             if (!result)

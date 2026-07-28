@@ -13,22 +13,41 @@ namespace WiMakit.API.Services
             _context = context;
         }
 
-        public async Task<bool> ProcessPaymentAsync(PaymentRequest request)
+        public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request)
         {
-            // Get produce to find the farmer
             var produce = await _context.Produces.FindAsync(request.ProduceId);
-            if (produce == null) return false;
+            if (produce == null)
+                return new PaymentResult { Success = false, Message = "Produce not found." };
 
-            // Demo payment: Always return success after a short delay
+            if (produce.Status != "available")
+                return new PaymentResult { Success = false, Message = "This produce is no longer available." };
+
+            if (request.Quantity > produce.Quantity)
+            {
+                return new PaymentResult
+                {
+                    Success = false,
+                    Message = produce.Quantity > 0
+                        ? $"Only {produce.Quantity} {produce.Unit} left in stock."
+                        : "This produce is out of stock."
+                };
+            }
+
+            // Server-computed amount — never trust a client-supplied price.
+            var amount = produce.Price * request.Quantity;
+
+            // Demo payment gateway simulation. Replace this delay with a real
+            // provider call (AfriMoney/Orange Money/bank API) before production;
+            // right now every payment "succeeds" once stock/availability checks pass.
             await Task.Delay(1000);
 
-            // Create order record
             var order = new Order
             {
                 BuyerId = request.BuyerId,
                 FarmerId = produce.FarmerId,
                 ProduceId = request.ProduceId,
-                Amount = request.Amount,
+                Quantity = request.Quantity,
+                Amount = amount,
                 PaymentMethod = request.PaymentMethod,
                 AccountNumber = request.AccountNumber,
                 Status = "Completed",
@@ -36,9 +55,18 @@ namespace WiMakit.API.Services
             };
 
             _context.Orders.Add(order);
+
+            produce.Quantity -= request.Quantity;
+            if (produce.Quantity <= 0)
+            {
+                produce.Quantity = 0;
+                produce.Status = "sold";
+            }
+            produce.UpdatedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
 
-            return true;
+            return new PaymentResult { Success = true, Message = "Payment successful" };
         }
 
         public async Task<IEnumerable<OrderDTO>> GetBuyerOrdersAsync(int buyerId)
@@ -52,14 +80,15 @@ namespace WiMakit.API.Services
                 {
                     Id = o.Id,
                     ProduceId = o.ProduceId,
+                    Quantity = o.Quantity,
                     ProduceName = o.Produce != null ? o.Produce.Name : "Deleted Product",
                     ProduceImageUrl = o.Produce != null ? o.Produce.ImageUrl : null,
                     Amount = o.Amount,
                     PaymentMethod = o.PaymentMethod,
                     Status = o.Status,
                     CreatedAt = o.CreatedAt,
-                    BuyerName = o.Buyer != null ? o.Buyer.Name : "",
-                    FarmerName = o.Farmer != null ? o.Farmer.Name : ""
+                    BuyerName = o.Buyer != null ? o.Buyer.FullName : "",
+                    FarmerName = o.Farmer != null ? o.Farmer.FullName : ""
                 })
                 .ToListAsync();
         }
@@ -75,14 +104,15 @@ namespace WiMakit.API.Services
                 {
                     Id = o.Id,
                     ProduceId = o.ProduceId,
+                    Quantity = o.Quantity,
                     ProduceName = o.Produce != null ? o.Produce.Name : "Deleted Product",
                     ProduceImageUrl = o.Produce != null ? o.Produce.ImageUrl : null,
                     Amount = o.Amount,
                     PaymentMethod = o.PaymentMethod,
                     Status = o.Status,
                     CreatedAt = o.CreatedAt,
-                    BuyerName = o.Buyer != null ? o.Buyer.Name : "",
-                    FarmerName = o.Farmer != null ? o.Farmer.Name : ""
+                    BuyerName = o.Buyer != null ? o.Buyer.FullName : "",
+                    FarmerName = o.Farmer != null ? o.Farmer.FullName : ""
                 })
                 .ToListAsync();
         }
