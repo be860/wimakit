@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { authAPI } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 
 export default function VerifyEmailContent() {
   const router = useRouter()
+  const { setSession } = useAuth()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
@@ -68,21 +70,21 @@ export default function VerifyEmailContent() {
     setResendMessage("")
 
     try {
-      const response = await authAPI.verifyOtp(email.trim(), otp.trim())
-      setStatus("success")
-      setMessage(response.message || "Your email has been verified successfully!")
+      const response = await authAPI.verifyOtp(
+  email.trim(),
+  otp.trim()
+)
 
-      // Update stored user isEmailVerified status if present
-      const storedUser = localStorage.getItem("wimakit_user")
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser)
-          parsed.isEmailVerified = true
-          localStorage.setItem("wimakit_user", JSON.stringify(parsed))
-        } catch (e) {
-          // ignore
-        }
-      }
+// Save access token, refresh token and user
+setSession(response)
+
+setStatus("success")
+setMessage("Your email has been verified successfully!")
+
+// Redirect after a short delay
+setTimeout(() => {
+  router.push("/")
+}, 1500)
     } catch (error: any) {
       setStatus("error")
       setMessage(error.message || "Verification failed. The OTP code may be invalid or expired.")
@@ -104,7 +106,7 @@ export default function VerifyEmailContent() {
     setMessage("")
 
     try {
-      const response = await authAPI.resendOtp(email.trim())
+      const response = await authAPI.requestOtp(email.trim())
       setResendMessage(response.message || "A new 6-digit OTP code has been sent to your email.")
       setCooldown(60) // 60-second cooldown
     } catch (error: any) {
@@ -167,21 +169,14 @@ export default function VerifyEmailContent() {
         {status === "success" ? (
           <div className="space-y-4">
             <Alert className="rounded-xl border-[#1B4B3A]/20 bg-[#1B4B3A]/5">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "#1B4B3A" }} />
-              <AlertDescription className="text-xs font-semibold" style={{ color: "#1B4B3A" }}>
-                {message || "Email verified! You can now access your dashboard."}
-              </AlertDescription>
-            </Alert>
-
-            <Link href="/login" className="block">
-              <button
-                className="w-full h-[52px] rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
-                style={{ background: "#1B4B3A", color: "#F7F2E9" }}
-              >
-                <span>Continue to Login</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </Link>
+  <CheckCircle2 className="h-4 w-4" style={{ color: "#1B4B3A" }} />
+  <AlertDescription
+    className="text-xs font-semibold"
+    style={{ color: "#1B4B3A" }}
+  >
+    {message}
+  </AlertDescription>
+</Alert>
           </div>
         ) : (
           <form onSubmit={handleVerify} className="space-y-5">

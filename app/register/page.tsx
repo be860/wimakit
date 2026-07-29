@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { authAPI, setAuthToken } from "@/lib/api"
+import { authAPI } from "@/lib/api"
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -105,10 +105,14 @@ export default function RegisterPage() {
         businessType: role === "buyer" ? formData.businessType : undefined,
       })
 
-      setAuthToken(response.token)
-      localStorage.setItem("wimakit_user", JSON.stringify(response.user))
       setSuccess(true)
-      setError("")
+setError("")
+
+setTimeout(() => {
+  router.push(
+    `/verify-otp?email=${encodeURIComponent(response.email)}`
+  )
+}, 1000)
 
       // Redirect to verify-email with email param after a short delay
       setTimeout(() => {

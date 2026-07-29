@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { authAPI, setAuthToken, removeAuthToken, getAuthToken, type AuthUser, type AuthResponse } from "./api"
+import { authAPI, setTokens, removeTokens, getAccessToken, getRefreshToken, type AuthUser, type AuthResponse } from "./api"
 
 interface AuthResult {
   success: boolean
@@ -10,10 +10,10 @@ interface AuthResult {
 
 interface AuthContextType {
   user: AuthUser | null
-  login: (email: string, password: string) => Promise<AuthResult>
-  loginWithGoogle: (idToken: string, role?: "farmer" | "buyer") => Promise<AuthResult>
+  login: (email: string, password: string) => Promise<boolean>
+  loginWithGoogle: (idToken: string, role?: "farmer" | "buyer") => Promise<boolean>
   setSession: (response: AuthResponse) => void
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
 }
 
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("wimakit_user")
-    const token = getAuthToken()
+    const token = getAccessToken()
 
     if (storedUser && token) {
       try {
@@ -38,16 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const handleAuthSuccess = (response: AuthResponse) => {
+  const setSession = (response: AuthResponse) => {
     setUser(response.user)
-    setAuthToken(response.token)
+    setTokens(response.accessToken, response.refreshToken)
     localStorage.setItem("wimakit_user", JSON.stringify(response.user))
   }
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response: AuthResponse = await authAPI.login({ email, password })
-      handleAuthSuccess(response)
+      setSession(response)
       return true
     } catch (error) {
       console.error("Login failed:", error)
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async (idToken: string, role?: "farmer" | "buyer"): Promise<boolean> => {
     try {
       const response: AuthResponse = await authAPI.googleAuth({ idToken, role })
-      handleAuthSuccess(response)
+      setSession(response)
       return true
     } catch (error) {
       console.error("Google login failed:", error)
@@ -66,14 +66,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    removeAuthToken()
-    localStorage.removeItem("wimakit_user")
+  const logout = async () => {
+  try {
+    const refreshToken = getRefreshToken()
+
+    if (refreshToken) {
+      await authAPI.logout(refreshToken)
+    }
+  } catch (err) {
+    console.error(err)
   }
 
+  setUser(null)
+
+  removeTokens()
+
+  localStorage.removeItem("wimakit_user")
+}
+
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, setSession, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   )

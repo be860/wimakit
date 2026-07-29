@@ -1,20 +1,32 @@
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:5001/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.wimakit.shop/api"
 
 // ── Auth Token Management ────────────────────────────────────────────────────
-export const getAuthToken = (): string | null => {
+export const getAccessToken = (): string | null => {
   if (typeof window === "undefined") return null
-  return localStorage.getItem("authToken")
+  return localStorage.getItem("accessToken")
 }
 
-export const setAuthToken = (token: string): void => {
-  if (typeof window === "undefined") return
-  localStorage.setItem("authToken", token)
+export const getRefreshToken = (): string | null => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("refreshToken")
 }
 
-export const removeAuthToken = (): void => {
+export const setTokens = (
+  accessToken: string,
+  refreshToken: string
+): void => {
   if (typeof window === "undefined") return
-  localStorage.removeItem("authToken")
+
+  localStorage.setItem("accessToken", accessToken)
+  localStorage.setItem("refreshToken", refreshToken)
+}
+
+export const removeTokens = (): void => {
+  if (typeof window === "undefined") return
+
+  localStorage.removeItem("accessToken")
+  localStorage.removeItem("refreshToken")
 }
 
 // ── Request Deduplication Cache ──────────────────────────────────────────────
@@ -48,8 +60,40 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
 }
 
 // ── Core API Request Helper ──────────────────────────────────────────────────
+let isRefreshing = false
+let refreshPromise: Promise<void> | null = null
+
+async function refreshAccessToken(): Promise<void> {
+  const refreshToken = getRefreshToken()
+
+  if (!refreshToken) {
+    removeTokens()
+    throw new Error("No refresh token available")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      refreshToken,
+    }),
+  })
+
+  if (!response.ok) {
+    removeTokens()
+    localStorage.removeItem("wimakit_user")
+    throw new Error("Session expired")
+  }
+
+  const data: AuthResponse = await response.json()
+
+  setTokens(data.accessToken, data.refreshToken)
+}
+
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = getAccessToken()
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -59,14 +103,59 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   const url = `${API_BASE_URL}${endpoint}`.replace(/([^:]\/)\/{2,}/g, "$1")
 
-  const response = await fetch(url, { ...options, headers })
+  let response = await fetch(url, {
+  ...options,
+  headers,
+})
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }))
-    throw new Error(error.message || `HTTP ${response.status}`)
+if (response.status === 401) {
+  try {
+    if (!isRefreshing) {
+      isRefreshing = true
+      refreshPromise = refreshAccessToken()
+
+      await refreshPromise
+
+      isRefreshing = false
+      refreshPromise = null
+    } else {
+      await refreshPromise
+    }
+
+    const newToken = getAccessToken()
+
+    const retryHeaders: HeadersInit = {
+      ...headers,
+      ...(newToken && {
+        Authorization: `Bearer ${newToken}`,
+      }),
+    }
+
+    response = await fetch(url, {
+      ...options,
+      headers: retryHeaders,
+    })
+  } catch {
+    removeTokens()
+    localStorage.removeItem("wimakit_user")
+
+    if (typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
+
+    throw new Error("Session expired")
   }
+}
 
-  return response.json()
+if (!response.ok) {
+  const error = await response.json().catch(() => ({
+    message: `HTTP ${response.status}`,
+  }))
+
+  throw new Error(error.message || `HTTP ${response.status}`)
+}
+
+return response.json()
 }
 
 // ── Authentication API ───────────────────────────────────────────────────────
@@ -112,16 +201,24 @@ export interface AuthUser {
   isEmailVerified: boolean
   hasGoogleAuth: boolean
 }
+export interface RegisterResponse {
+  success: boolean
+  requiresVerification: boolean
+  email: string
+  message: string
+}
 
 export interface AuthResponse {
-  token: string
-  user: AuthUser
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+    message?: string;
 }
 
 export const authAPI = {
   register: (data: RegisterData) =>
-    withRetry(() =>
-      apiRequest<AuthResponse>("/auth/register", {
+  withRetry(() =>
+    apiRequest<RegisterResponse>("/auth/register", {
         method: "POST",
         body: JSON.stringify(data),
       })
@@ -143,29 +240,35 @@ export const authAPI = {
       })
     ),
 
-  verifyEmail: (token: string) =>
-    withRetry(() =>
-      apiRequest<{ message: string }>("/auth/verify-email", {
-        method: "POST",
-        body: JSON.stringify({ token }),
-      })
-    ),
-
   verifyOtp: (email: string, otp: string) =>
-    withRetry(() =>
-      apiRequest<{ message: string }>("/auth/verify-otp", {
-        method: "POST",
-        body: JSON.stringify({ email, otp }),
-      })
-    ),
+  withRetry(() =>
+    apiRequest<AuthResponse>("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
+    })
+  ),
 
-  resendOtp: (email: string) =>
-    withRetry(() =>
-      apiRequest<{ message: string }>("/auth/resend-otp", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      })
-    ),
+  requestOtp: (email: string) =>
+  withRetry(() =>
+    apiRequest<{ message: string }>("/auth/request-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  ),
+
+    refresh: (refreshToken: string) =>
+  apiRequest<AuthResponse>("/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  }),
+
+  logout: (refreshToken: string) =>
+  apiRequest("/auth/logout", {
+    method: "POST",
+    body: JSON.stringify({
+      refreshToken,
+    }),
+  }),
 }
 
 // ── Produce API ──────────────────────────────────────────────────────────────
@@ -292,7 +395,7 @@ export const messagesAPI = {
 
 // ── Image Upload ─────────────────────────────────────────────────────────────
 export const uploadImage = async (file: File): Promise<string> => {
-  const token = getAuthToken()
+  const token = getAccessToken()
   const formData = new FormData()
   formData.append("file", file)
 
