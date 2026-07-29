@@ -79,9 +79,15 @@ namespace WiMakit.API.Controllers
                 _logger.LogWarning("Verification email could not be sent to {Email}", user.Email);
             }
 
-            // Token is returned so the frontend can persist session state during OTP verification.
-            // Protected endpoints require the VerifiedEmail policy.
-            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
+            return Ok(new
+{
+    success = true,
+    requiresVerification = true,
+    email = user.Email,
+    message = emailSent
+        ? "Registration successful. A verification code has been sent to your email."
+        : "Registration successful, but we couldn't send the verification code. Please request a new OTP."
+});
         }
 
         // ── Login ─────────────────────────────────────────────────────────────
@@ -178,30 +184,6 @@ namespace WiMakit.API.Controllers
             return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
         }
 
-        // ── Verify Email / Token (legacy token-only flow) ─────────────────────
-        [HttpPost("verify-email")]
-        [EnableRateLimiting("auth-login")]
-        public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.EmailVerificationToken == request.Token);
-
-            if (user == null)
-                return BadRequest(new { message = "Invalid verification token" });
-
-            if (user.EmailVerificationExpiry < DateTime.UtcNow)
-                return BadRequest(new { message = "Verification token has expired. Please request a new code." });
-
-            user.IsEmailVerified = true;
-            user.EmailVerificationToken = null;
-            user.EmailVerificationExpiry = null;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Email verified successfully" });
-        }
-
         // ── Verify OTP (Email + 6-digit Code) ─────────────────────────────────
         [HttpPost("verify-otp")]
         [EnableRateLimiting("auth-login")]
@@ -247,7 +229,7 @@ namespace WiMakit.API.Controllers
         }
 
         // ── Resend OTP ────────────────────────────────────────────────────────
-        [HttpPost("resend-otp")]
+        [HttpPost("request-otp")]
         [EnableRateLimiting("auth-register")]
         public async Task<IActionResult> ResendOtp(ResendOtpRequest request)
         {
