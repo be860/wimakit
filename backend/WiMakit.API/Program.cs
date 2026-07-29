@@ -103,7 +103,8 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
 
 // ── Custom Application Services ───────────────────────────────────────────────
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IEmailService, EmailService>();
 builder.Services.AddScoped<IProduceService, ProduceService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();

@@ -1,5 +1,6 @@
-using System.Net;
-using System.Net.Mail;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace WiMakit.API.Services
 {
@@ -10,74 +11,82 @@ namespace WiMakit.API.Services
 
     public class EmailService : IEmailService
     {
+        private readonly HttpClient _httpClient;
         private readonly ILogger<EmailService> _logger;
         private readonly IConfiguration _configuration;
 
-        public EmailService(ILogger<EmailService> logger, IConfiguration configuration)
+        public EmailService(
+            HttpClient httpClient,
+            ILogger<EmailService> logger,
+            IConfiguration configuration)
         {
+            _httpClient = httpClient;
             _logger = logger;
             _configuration = configuration;
         }
-
         public async Task<bool> SendVerificationEmailAsync(string email, string token)
         {
             try
-            {
-                var smtpServer = _configuration["Smtp:Server"]?.Trim();
-                var smtpPort = int.Parse(_configuration["Smtp:Port"] ?? "587");
-                var senderEmail = _configuration["Smtp:SenderEmail"]?.Trim();
-                var senderName = _configuration["Smtp:SenderName"]?.Trim();
-                var username = _configuration["Smtp:Username"]?.Trim();
-                var password = _configuration["Smtp:Password"]?.Trim();
-                var enableSsl = bool.Parse(_configuration["Smtp:EnableSsl"] ?? "true");
+{
+    var apiKey = _configuration["Resend:ApiKey"]?.Trim();
+    var senderEmail = _configuration["Resend:SenderEmail"]?.Trim();
+    var senderName = _configuration["Resend:SenderName"]?.Trim() ?? "WiMakit";
 
-                _logger.LogInformation($"Attempting to send email via {smtpServer}:{smtpPort} for {username}");
+    _logger.LogInformation("Attempting to send verification email to {Email}", email);
 
-                if (string.IsNullOrEmpty(password))
-                {
-                    _logger.LogWarning("SMTP Password is empty in configuration!");
-                }
+    if (string.IsNullOrWhiteSpace(apiKey))
+    {
+        _logger.LogError("Resend API key is not configured.");
 
-                if (string.IsNullOrWhiteSpace(senderEmail))
-                {
-                    _logger.LogError("Smtp:SenderEmail is not configured. Cannot send verification email to {Email}.", email);
+        _logger.LogWarning("************************************************************");
+        _logger.LogWarning("EMAIL FALLBACK - Verification token for {Email}: {Token}", email, token);
+        _logger.LogWarning("************************************************************");
 
-                    _logger.LogWarning("************************************************************");
-                    _logger.LogWarning($"EMAIL FALLBACK - Verification token for {email}: {token}");
-                    _logger.LogWarning("************************************************************");
+        return false;
+    }
 
-                    return false;
-                }
+    if (string.IsNullOrWhiteSpace(senderEmail))
+    {
+        _logger.LogError("Resend sender email is not configured.");
 
-                // Create HTML email body
-                var htmlBody = GetVerificationEmailTemplate(token);
+        _logger.LogWarning("************************************************************");
+        _logger.LogWarning("EMAIL FALLBACK - Verification token for {Email}: {Token}", email, token);
+        _logger.LogWarning("************************************************************");
 
-                using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-                smtpClient.UseDefaultCredentials = false;
-                smtpClient.Credentials = new NetworkCredential(username, password);
-                smtpClient.EnableSsl = enableSsl;
-                smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-                smtpClient.Timeout = 20000; // 20 seconds
+        return false;
+    }
 
-                var mailMessage = new MailMessage
-                {
-                    From = new MailAddress(senderEmail ?? "", senderName ?? "WiMakit"),
-                    Subject = "Verify Your WiMakit Account",
-                    Body = htmlBody,
-                    IsBodyHtml = true
-                };
+    var htmlBody = GetVerificationEmailTemplate(token);
 
-                mailMessage.To.Add(email);
+                _httpClient.DefaultRequestHeaders.Authorization =
+    new AuthenticationHeaderValue("Bearer", apiKey);
 
-                await smtpClient.SendMailAsync(mailMessage);
-                
+var payload = new
+{
+    from = $"{senderName} <{senderEmail}>",
+    to = new[] { email },
+    subject = "Verify Your WiMakit Account",
+    html = htmlBody
+};
+
+var content = new StringContent(
+    JsonSerializer.Serialize(payload),
+    Encoding.UTF8,
+    "application/json");
+
+var response = await _httpClient.PostAsync(
+    "https://api.resend.com/emails",
+    content);
+
+response.EnsureSuccessStatusCode();
+
                 _logger.LogInformation($"Verification email successfully sent to: {email}");
                 return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to send verification email to: {email}");
-                
+
                 // Fallback: Log to console for development
                 _logger.LogWarning("************************************************************");
                 _logger.LogWarning($"EMAIL FALLBACK - Verification token for {email}: {token}");
