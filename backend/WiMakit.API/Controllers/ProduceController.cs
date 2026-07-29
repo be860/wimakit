@@ -8,7 +8,7 @@ namespace WiMakit.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Policy = "VerifiedEmail")]
     public class ProduceController : ControllerBase
     {
         private readonly IProduceService _produceService;
@@ -17,6 +17,7 @@ namespace WiMakit.API.Controllers
         {
             _produceService = produceService;
         }
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<ProduceDTO>>> GetAllProduce(
@@ -27,6 +28,7 @@ namespace WiMakit.API.Controllers
             return Ok(produces);
         }
 
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<ActionResult<ProduceDTO>> GetProduceById(int id)
@@ -41,7 +43,7 @@ namespace WiMakit.API.Controllers
             return Ok(produce);
         }
 
-        [Authorize]
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpGet("farmer/{farmerId}")]
         public async Task<ActionResult<IEnumerable<ProduceDTO>>> GetFarmerProduce(int farmerId)
         {

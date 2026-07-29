@@ -63,5 +63,7 @@ namespace WiMakit.API.Models
         public virtual ICollection<Produce> Produces { get; set; } = new List<Produce>();
         public virtual ICollection<Message> SentMessages { get; set; } = new List<Message>();
         public virtual ICollection<Message> ReceivedMessages { get; set; } = new List<Message>();
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+    = new List<RefreshToken>();
     }
 }

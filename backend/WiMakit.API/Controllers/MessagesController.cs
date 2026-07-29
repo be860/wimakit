@@ -17,7 +17,8 @@ namespace WiMakit.API.Controllers
         {
             _messageService = messageService;
         }
-
+        
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpGet("conversations")]
         public async Task<ActionResult<IEnumerable<ConversationDTO>>> GetConversations()
         {
@@ -26,6 +27,7 @@ namespace WiMakit.API.Controllers
             return Ok(conversations);
         }
 
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpGet("conversation/{otherUserId}")]
         public async Task<ActionResult<IEnumerable<MessageDTO>>> GetConversation(int otherUserId)
         {
@@ -49,6 +51,7 @@ namespace WiMakit.API.Controllers
             return CreatedAtAction(nameof(GetConversation), new { otherUserId = request.ReceiverId }, message);
         }
 
+        [Authorize(Policy = "VerifiedEmail")]
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id)
         {

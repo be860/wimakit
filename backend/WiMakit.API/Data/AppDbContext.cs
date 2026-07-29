@@ -8,41 +8,42 @@ namespace WiMakit.API.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
-        
+
         public DbSet<User> Users { get; set; }
         public DbSet<Produce> Produces { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Order> Orders { get; set; }
-        
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            
+
             // Configure User entity
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
-            
+
             // Configure Produce relationships
             modelBuilder.Entity<Produce>()
                 .HasOne(p => p.Farmer)
                 .WithMany(u => u.Produces)
                 .HasForeignKey(p => p.FarmerId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             // Configure Message relationships
             modelBuilder.Entity<Message>()
                 .HasOne(m => m.Sender)
                 .WithMany(u => u.SentMessages)
                 .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             modelBuilder.Entity<Message>()
                 .HasOne(m => m.Receiver)
                 .WithMany(u => u.ReceivedMessages)
                 .HasForeignKey(m => m.ReceiverId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             modelBuilder.Entity<Message>()
                 .HasOne(m => m.Produce)
                 .WithMany()
@@ -67,6 +68,13 @@ namespace WiMakit.API.Data
                 .WithMany()
                 .HasForeignKey(o => o.ProduceId)
                 .OnDelete(DeleteBehavior.Restrict);
-        }
+
+            // Configure RefreshToken relationships
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+                        }
     }
 }

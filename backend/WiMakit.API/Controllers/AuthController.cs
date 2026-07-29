@@ -108,7 +108,14 @@ namespace WiMakit.API.Controllers
             if (!user.IsEmailVerified)
                 return Unauthorized(new { message = "Please verify your email before logging in" });
 
-            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user);
+
+return Ok(new AuthResponse
+{
+    AccessToken = GenerateAccessToken(user),
+    RefreshToken = refreshToken,
+    User = MapUserToDTO(user)
+});
         }
 
         // ── Google OAuth ──────────────────────────────────────────────────────
@@ -181,7 +188,14 @@ namespace WiMakit.API.Controllers
                 }
             }
 
-            return Ok(new AuthResponse { Token = GenerateJwtToken(user), User = MapUserToDTO(user) });
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user);
+
+return Ok(new AuthResponse
+{
+    AccessToken = GenerateAccessToken(user),
+    RefreshToken = refreshToken,
+    User = MapUserToDTO(user)
+});
         }
 
         // ── Verify OTP (Email + 6-digit Code) ─────────────────────────────────
@@ -201,7 +215,8 @@ namespace WiMakit.API.Controllers
             {
                 return Ok(new AuthResponse
                 {
-                    Token = GenerateJwtToken(user),
+                    AccessToken = GenerateAccessToken(user),
+                    RefreshToken = string.Empty,
                     User = MapUserToDTO(user),
                     Message = "Account is already verified. You can log in."
                 });
@@ -220,12 +235,15 @@ namespace WiMakit.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new AuthResponse
-            {
-                Token = GenerateJwtToken(user),
-                User = MapUserToDTO(user),
-                Message = "Email verified successfully! You can now log in."
-            });
+            var refreshToken = await CreateAndSaveRefreshTokenAsync(user);
+
+return Ok(new AuthResponse
+{
+    AccessToken = GenerateAccessToken(user),
+    RefreshToken = refreshToken,
+    User = MapUserToDTO(user),
+    Message = "Email verified successfully! You can now log in."
+});
         }
 
         // ── Resend OTP ────────────────────────────────────────────────────────
@@ -260,13 +278,86 @@ namespace WiMakit.API.Controllers
             return Ok(new { message = "A new 6-digit OTP code has been sent to your email." });
         }
 
+        [HttpPost("refresh")]
+public async Task<IActionResult> Refresh(RefreshTokenRequest request)
+{
+    var refreshToken = await _context.RefreshTokens
+        .Include(rt => rt.User)
+        .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+    if (refreshToken == null)
+        return Unauthorized(new { message = "Invalid refresh token." });
+
+    if (refreshToken.IsRevoked)
+        return Unauthorized(new { message = "Refresh token has been revoked." });
+
+    if (refreshToken.IsExpired)
+        return Unauthorized(new { message = "Refresh token has expired." });
+
+    var accessToken = GenerateAccessToken(refreshToken.User);
+
+    refreshToken.RevokedAt = DateTime.UtcNow;
+
+var newRefreshToken = await CreateAndSaveRefreshTokenAsync(refreshToken.User);
+
+var newAccessToken = GenerateAccessToken(refreshToken.User);
+
+return Ok(new AuthResponse
+{
+    AccessToken = newAccessToken,
+    RefreshToken = newRefreshToken,
+    User = MapUserToDTO(refreshToken.User)
+});
+}
+
+[HttpPost("logout")]
+public async Task<IActionResult> Logout(RefreshTokenRequest request)
+{
+    var refreshToken = await _context.RefreshTokens
+        .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+    if (refreshToken == null)
+        return Ok();
+
+    refreshToken.RevokedAt = DateTime.UtcNow;
+
+    await _context.SaveChangesAsync();
+
+    return Ok(new
+    {
+        message = "Logged out successfully."
+    });
+}
+
         // ── Helpers ───────────────────────────────────────────────────────────
         private static string GenerateOtp()
         {
             return RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         }
+        private static string GenerateRefreshToken()
+        
+{
+    return Convert.ToBase64String(
+        RandomNumberGenerator.GetBytes(64));
+}
 
-        private string GenerateJwtToken(User user)
+        private async Task<string> CreateAndSaveRefreshTokenAsync(User user)
+{
+    var token = GenerateRefreshToken();
+
+    var refreshToken = new RefreshToken
+    {
+        Token = token,
+        UserId = user.Id,
+        ExpiresAt = DateTime.UtcNow.AddDays(30)
+    };
+
+    _context.RefreshTokens.Add(refreshToken);
+    await _context.SaveChangesAsync();
+
+    return token;
+}
+        private string GenerateAccessToken(User user)
         {
             var jwtKey = _configuration["Jwt:Key"]
                 ?? throw new InvalidOperationException("JWT Key is not configured");
@@ -289,7 +380,7 @@ namespace WiMakit.API.Controllers
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
             );
 

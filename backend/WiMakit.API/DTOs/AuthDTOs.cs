@@ -71,7 +71,8 @@ namespace WiMakit.API.DTOs
 
     public class AuthResponse
     {
-        public string Token { get; set; } = string.Empty;
+        public string AccessToken { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
         public UserDTO User { get; set; } = null!;
         public string? Message { get; set; }
     }
@@ -118,4 +119,10 @@ namespace WiMakit.API.DTOs
         [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
         public string Email { get; set; } = string.Empty;
     }
+
+    public class RefreshTokenRequest
+{
+    [Required]
+    public string RefreshToken { get; set; } = string.Empty;
+}
 }
