@@ -1,16 +1,13 @@
 services:
   - type: web
     name: wimakit-api
-    runtime: dotnet
-    rootDir: backend/WiMakit.API
-    buildCommand: dotnet publish -c Release -o out
-    startCommand: dotnet out/WiMakit.API.dll
+    runtime: docker
+    dockerfilePath: backend/WiMakit.API/Dockerfile
+    dockerContext: backend/WiMakit.API
     healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: ASPNETCORE_URLS
-        value: http://0.0.0.0:$PORT
       - key: ConnectionStrings__DefaultConnection
         sync: false
       - key: Jwt__Key
@@ -35,6 +32,12 @@ services:
         sync: false
       - key: Smtp__EnableSsl
         value: "true"
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__ServiceRoleKey
+        sync: false
+      - key: Supabase__Bucket
+        value: produce-images
       - key: Cors__AllowedOrigins__0
         value: https://wimakit.vercel.app
       - key: Cors__AllowedOrigins__1
