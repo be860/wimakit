@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Bell, ChevronDown, LogOut, Menu, Search, Settings, UserCog } from 'lucide-react'
 
 import { adminApi, NotificationItem } from '@/lib/admin/api'
@@ -38,6 +40,7 @@ function initials(name: string) {
 }
 
 export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
+  const router = useRouter()
   const { user, logout } = useAuth()
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([])
 
@@ -51,6 +54,11 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
   const displayName = user?.fullName ?? user?.firstName ?? 'Admin'
   const email = user?.email ?? ''
   const role = user?.role ?? 'SuperAdmin'
+
+  function handleLogout() {
+    logout()
+    router.push('/control/login')
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur-sm lg:px-6">
@@ -104,7 +112,11 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
                 </DropdownMenuItem>
               ) : (
                 notifications.slice(0, 4).map((n) => (
-                  <DropdownMenuItem key={n.id} className="items-start gap-2.5 py-2">
+                  <DropdownMenuItem
+                    key={n.id}
+                    className="items-start gap-2.5 py-2 cursor-pointer"
+                    onClick={() => router.push('/admin/notifications')}
+                  >
                     <span
                       aria-hidden
                       className={
@@ -125,7 +137,7 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
               )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<a href="/admin/notifications" />}>
+            <DropdownMenuItem onClick={() => router.push('/admin/notifications')} className="cursor-pointer font-medium text-primary">
               View all notifications
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -153,17 +165,17 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/admin/profile')} className="cursor-pointer">
                 <UserCog />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem render={<a href="/admin/settings" />}>
+              <DropdownMenuItem onClick={() => router.push('/admin/settings')} className="cursor-pointer">
                 <Settings />
                 System settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={logout}>
+            <DropdownMenuItem variant="destructive" onClick={handleLogout} className="cursor-pointer">
               <LogOut />
               Log out
             </DropdownMenuItem>

@@ -144,7 +144,10 @@ export function FarmerTopbar() {
               )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<a href="/farmer/notifications" />}>
+            <DropdownMenuItem
+              className="cursor-pointer font-medium text-farmer"
+              onClick={() => router.push('/farmer/notifications')}
+            >
               View all notifications
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -181,11 +184,17 @@ export function FarmerTopbar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<a href="/farmer/settings" />}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => router.push('/farmer/settings')}
+              >
                 <UserCog />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem render={<a href="/farmer/settings" />}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => router.push('/farmer/settings')}
+              >
                 <Settings />
                 Settings
               </DropdownMenuItem>
@@ -193,6 +202,7 @@ export function FarmerTopbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
+              className="cursor-pointer"
               onClick={() => {
                 logout()
                 router.push('/sign-in')
