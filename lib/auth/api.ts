@@ -5,7 +5,12 @@ export interface ChangePasswordPayload {
   newPassword: string;
 }
 
+export interface ChangePasswordResponse {
+  success: boolean;
+  message: string;
+}
+
 export const authApi = {
-  changePassword: (payload: ChangePasswordPayload) =>
-    apiClient.post<{ success: boolean; message: string }>('/api/auth/change-password', payload),
+  changePassword: (payload: ChangePasswordPayload): Promise<ChangePasswordResponse> =>
+    apiClient.post<ChangePasswordResponse>('/api/auth/change-password', payload),
 };
