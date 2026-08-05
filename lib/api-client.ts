@@ -84,7 +84,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new ApiClientError(response.status, errorData);
   }
 
-  if (response.status === 24) {
+  if (response.status === 204) {
     return {} as T;
   }
 
