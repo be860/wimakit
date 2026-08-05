@@ -12,10 +12,10 @@ namespace WiMakit.API.Data
             if (!context.Users.Any(u => u.Role == "SuperAdmin"))
             {
                 var seedEmail = Environment.GetEnvironmentVariable("SEED_ADMIN_EMAIL");
-                if (string.IsNullOrWhiteSpace(seedEmail)) seedEmail = "superadmin@wimakit.sl";
+                if (string.IsNullOrWhiteSpace(seedEmail)) seedEmail = "primedevs03@gmail.com";
 
                 var seedPassword = Environment.GetEnvironmentVariable("SEED_ADMIN_PASSWORD");
-                if (string.IsNullOrWhiteSpace(seedPassword)) seedPassword = "Admin123!";
+                if (string.IsNullOrWhiteSpace(seedPassword)) seedPassword = "Admin@2026";
 
                 var admin = new User
                 {
