@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -15,6 +16,8 @@ import {
   PanelLeftOpen,
 } from 'lucide-react'
 
+import { useAuth } from '@/components/providers/auth-provider'
+import { farmerApi } from '@/lib/farmer/api'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -24,20 +27,6 @@ export type FarmerNavItem = {
   icon: React.ComponentType<{ className?: string }>
   badge?: number
 }
-
-export const farmerPrimaryNav: FarmerNavItem[] = [
-  { href: '/farmer', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/farmer/products', label: 'My Products', icon: Package, badge: 9 },
-  { href: '/farmer/orders', label: 'Orders', icon: ClipboardList, badge: 6 },
-  { href: '/farmer/messages', label: 'Messages', icon: MessageSquare, badge: 3 },
-]
-
-export const farmerSecondaryNav: FarmerNavItem[] = [
-  { href: '/farmer/analytics', label: 'Sales & Analytics', icon: BarChart3 },
-  { href: '/farmer/reviews', label: 'Reviews', icon: Star },
-  { href: '/farmer/notifications', label: 'Notifications', icon: Bell, badge: 3 },
-  { href: '/farmer/settings', label: 'Settings', icon: Settings },
-]
 
 export function isFarmerActive(pathname: string, href: string) {
   if (href === '/farmer') return pathname === '/farmer'
@@ -111,6 +100,44 @@ export function FarmerSidebar({
   onToggle: () => void
 }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const [counts, setCounts] = React.useState<{
+    products?: number
+    orders?: number
+    messages?: number
+    notifications?: number
+  }>({})
+
+  React.useEffect(() => {
+    if (user?.id) {
+      farmerApi.getFarmerProduce(user.id)
+        .then((p) => setCounts((c) => ({ ...c, products: p?.length || 0 })))
+        .catch(() => {})
+    }
+    farmerApi.getFarmerSales()
+      .then((s) => setCounts((c) => ({ ...c, orders: s?.filter((o) => o.status === 'Pending').length || 0 })))
+      .catch(() => {})
+    farmerApi.getConversations()
+      .then((convs) => setCounts((c) => ({ ...c, messages: convs?.reduce((acc, curr) => acc + (curr.unreadCount || 0), 0) || 0 })))
+      .catch(() => {})
+    farmerApi.getNotifications()
+      .then((n) => setCounts((c) => ({ ...c, notifications: n?.filter((item) => item.isUnread).length || 0 })))
+      .catch(() => {})
+  }, [user?.id])
+
+  const farmerPrimaryNav: FarmerNavItem[] = [
+    { href: '/farmer', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/farmer/products', label: 'My Products', icon: Package, badge: counts.products },
+    { href: '/farmer/orders', label: 'Orders', icon: ClipboardList, badge: counts.orders },
+    { href: '/farmer/messages', label: 'Messages', icon: MessageSquare, badge: counts.messages },
+  ]
+
+  const farmerSecondaryNav: FarmerNavItem[] = [
+    { href: '/farmer/analytics', label: 'Sales & Analytics', icon: BarChart3 },
+    { href: '/farmer/reviews', label: 'Reviews', icon: Star },
+    { href: '/farmer/notifications', label: 'Notifications', icon: Bell, badge: counts.notifications },
+    { href: '/farmer/settings', label: 'Settings', icon: Settings },
+  ]
 
   return (
     <aside

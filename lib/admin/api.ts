@@ -88,6 +88,16 @@ export interface AuditLogEntry {
   createdAt: string
 }
 
+export interface NotificationItem {
+  id: number
+  userId?: number
+  type: string
+  title: string
+  body: string
+  isUnread: boolean
+  createdAt: string
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const adminApi = {
@@ -137,6 +147,10 @@ export const adminApi = {
 
   broadcastNotification: (title: string, body: string, targetRole?: string) =>
     apiClient.post('/api/admin/notifications/broadcast', { title, body, targetRole }),
+
+  getNotifications: () => apiClient.get<NotificationItem[]>('/api/notifications'),
+
+  markNotificationRead: (id: number) => apiClient.put(`/api/notifications/${id}/read`, {}),
 }
 
 // ─── Currency helper ──────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ namespace WiMakit.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin,farmer,buyer")] // Allow admin roles; fallback to claims check if needed
+    [Authorize(Roles = "admin,superadmin")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -116,6 +116,7 @@ namespace WiMakit.API.Controllers
 
         [HttpGet("audit-log")]
         [HttpGet("audit-logs")]
+        [Authorize(Roles = "superadmin")] // Audit log is SuperAdmin-only
         public async Task<IActionResult> GetAuditLogs()
         {
             var logs = await _adminService.GetAuditLogsAsync();

@@ -1,31 +1,32 @@
-import { farmers } from '@/lib/admin/mock-data'
+'use client'
+
+import * as React from 'react'
+
+import { adminApi } from '@/lib/admin/api'
 import { PageHeader } from '@/components/admin/primitives'
 import { FarmersTable } from '@/components/admin/farmers-table'
 
-export const metadata = {
-  title: 'Farmers',
-}
+export default function FarmersPage() {
+  const [description, setDescription] = React.useState('Approval queue and full farmer directory.')
 
-export default async function FarmersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string }>
-}) {
-  const { status } = await searchParams
-
-  const counts = {
-    pending: farmers.filter((f) => f.status === 'Pending').length,
-    approved: farmers.filter((f) => f.status === 'Approved').length,
-    suspended: farmers.filter((f) => f.status === 'Suspended').length,
-  }
+  React.useEffect(() => {
+    adminApi.getFarmers()
+      .then((farmers) => {
+        const pending = farmers.filter((f) => f.status === 'Pending').length
+        const approved = farmers.filter((f) => f.status === 'Approved').length
+        const suspended = farmers.filter((f) => f.status === 'Suspended').length
+        setDescription(
+          `Approval queue and full directory — ${pending} pending, ${approved} approved, ${suspended} suspended.`,
+        )
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Farmers"
-        description={`Approval queue and full directory — ${counts.pending} pending, ${counts.approved} approved, ${counts.suspended} suspended in this sample.`}
-      />
-      <FarmersTable initialStatus={status} />
+      <PageHeader title="Farmers" description={description} />
+      <FarmersTable />
     </div>
   )
 }
+

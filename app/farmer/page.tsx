@@ -141,7 +141,7 @@ export default function FarmerDashboardPage() {
       </PageHeader>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <TrustScore score={88} hint="Trust score reflects order fulfillment speed, quality reviews, and NIN verification." />
+        <TrustScore score={(user as any)?.trustScore || 85} hint="Trust score reflects order fulfillment speed, quality reviews, and NIN verification." />
         <div className="flex flex-col justify-center gap-1 rounded-lg border border-border bg-card px-4 py-3">
           <span className="text-xs font-medium text-muted-foreground">
             Verification Status

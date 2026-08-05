@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
+'use client'
 
+import * as React from 'react'
 import { Download } from 'lucide-react'
 
-import { buyerDistricts, salesByProduct } from '@/lib/farmer/mock-data'
+import { farmerApi, LE, type FarmerOrder } from '@/lib/farmer/api'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -16,19 +17,71 @@ import { PageHeader, Panel } from '@/components/farmer/primitives'
 import { FarmerRevenueChart, SalesByProductChart } from '@/components/farmer/farmer-charts'
 import { BuyerDistrictChart } from '@/components/farmer/analytics-charts'
 
-const payouts = [
-  { ref: 'PO-2025-0812', period: '01–15 Jul 2025', orders: 9, amount: 'Le 7.85m', status: 'Paid' },
-  { ref: 'PO-2025-0798', period: '16–30 Jun 2025', orders: 11, amount: 'Le 9.10m', status: 'Paid' },
-  { ref: 'PO-2025-0781', period: '01–15 Jun 2025', orders: 8, amount: 'Le 6.42m', status: 'Paid' },
-  { ref: 'PO-2025-0764', period: '16–31 May 2025', orders: 10, amount: 'Le 8.05m', status: 'Paid' },
-]
-
-export const metadata: Metadata = {
-  title: 'Sales & Analytics',
-}
-
 export default function FarmerAnalyticsPage() {
-  const totalDistrictOrders = buyerDistricts.reduce((n, d) => n + d.orders, 0)
+  const [sales, setSales] = React.useState<FarmerOrder[]>([])
+
+  React.useEffect(() => {
+    farmerApi
+      .getFarmerSales()
+      .then((data) => setSales(data || []))
+      .catch(() => setSales([]))
+  }, [])
+
+  // Aggregate buyer districts
+  const distMap = new Map<string, number>()
+  for (const s of sales) {
+    const dist = s.district || 'Western Area'
+    distMap.set(dist, (distMap.get(dist) || 0) + 1)
+  }
+  const totalOrders = sales.length
+  const totalDistricts = distMap.size
+
+  // Aggregate product performance (this month vs last month)
+  const now = new Date()
+  const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthKey = `${lastMonthDate.getFullYear()}-${lastMonthDate.getMonth()}`
+
+  const prodStats = new Map<string, { current: number; previous: number }>()
+  for (const s of sales) {
+    if (s.status === 'Cancelled') continue
+    const pName = s.produceName || 'Produce'
+    const d = new Date(s.createdAt)
+    const mKey = `${d.getFullYear()}-${d.getMonth()}`
+    const amt = s.totalAmount || s.amount || 0
+
+    if (!prodStats.has(pName)) {
+      prodStats.set(pName, { current: 0, previous: 0 })
+    }
+    const stat = prodStats.get(pName)!
+    if (mKey === currentMonthKey) {
+      stat.current += amt
+    } else if (mKey === lastMonthKey) {
+      stat.previous += amt
+    }
+  }
+
+  const productPerformance = Array.from(prodStats.entries()).map(([product, stat]) => ({
+    product,
+    current: stat.current,
+    previous: stat.previous,
+  }))
+
+  // Payout history (generated from completed sales)
+  const deliveredSales = sales.filter((s) => s.status === 'Delivered')
+  const totalDeliveredAmt = deliveredSales.reduce((acc, s) => acc + (s.totalAmount || s.amount || 0), 0)
+
+  const payouts = totalOrders > 0
+    ? [
+        {
+          ref: `PO-${now.getFullYear()}-001`,
+          period: 'Current Period',
+          orders: deliveredSales.length,
+          amount: LE(totalDeliveredAmt),
+          status: 'Paid',
+        },
+      ]
+    : []
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +97,7 @@ export default function FarmerAnalyticsPage() {
 
       <Panel
         title="Revenue Over Time"
-        description="Gross sales in millions of Leones, last 12 months"
+        description="Gross sales in Leones"
         bodyClassName="p-4"
       >
         <FarmerRevenueChart />
@@ -53,14 +106,14 @@ export default function FarmerAnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Panel
           title="Top-Selling Products"
-          description="This month vs last month, in millions of Leones"
+          description="Total sales per product"
           bodyClassName="p-4"
         >
           <SalesByProductChart />
         </Panel>
         <Panel
           title="Buyer Geography"
-          description={`${totalDistrictOrders} orders across ${buyerDistricts.length} districts`}
+          description={`${totalOrders} orders across ${totalDistricts || 1} districts`}
           bodyClassName="p-4"
         >
           <BuyerDistrictChart />
@@ -68,7 +121,7 @@ export default function FarmerAnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Product Performance" description="Ranked by revenue this month">
+        <Panel title="Product Performance" description="Ranked by sales performance">
           <Table>
             <TableHeader>
               <TableRow>
@@ -79,35 +132,44 @@ export default function FarmerAnalyticsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {salesByProduct.map((p) => {
-                const change = ((p.current - p.previous) / p.previous) * 100
-                return (
-                  <TableRow key={p.product}>
-                    <TableCell className="font-medium">{p.product}</TableCell>
-                    <TableCell className="tabular text-right">
-                      Le {p.current.toFixed(1)}m
-                    </TableCell>
-                    <TableCell className="tabular text-right text-muted-foreground">
-                      Le {p.previous.toFixed(1)}m
-                    </TableCell>
-                    <TableCell
-                      className={
-                        change >= 0
-                          ? 'tabular text-right text-farmer'
-                          : 'tabular text-right text-destructive'
-                      }
-                    >
-                      {change >= 0 ? '+' : ''}
-                      {change.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {productPerformance.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-6">
+                    No sales recorded yet.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                productPerformance.map((p) => {
+                  const prev = p.previous || 1
+                  const change = ((p.current - p.previous) / prev) * 100
+                  return (
+                    <TableRow key={p.product}>
+                      <TableCell className="font-medium">{p.product}</TableCell>
+                      <TableCell className="tabular text-right">
+                        {LE(p.current)}
+                      </TableCell>
+                      <TableCell className="tabular text-right text-muted-foreground">
+                        {LE(p.previous)}
+                      </TableCell>
+                      <TableCell
+                        className={
+                          change >= 0
+                            ? 'tabular text-right text-farmer'
+                            : 'tabular text-right text-destructive'
+                        }
+                      >
+                        {change >= 0 ? '+' : ''}
+                        {change.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </Panel>
 
-        <Panel title="Payout History" description="Settled every two weeks">
+        <Panel title="Payout History" description="Settled bi-weekly">
           <Table>
             <TableHeader>
               <TableRow>
@@ -118,18 +180,26 @@ export default function FarmerAnalyticsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payouts.map((p) => (
-                <TableRow key={p.ref}>
-                  <TableCell className="tabular font-medium">{p.ref}</TableCell>
-                  <TableCell className="tabular hidden text-muted-foreground sm:table-cell">
-                    {p.period}
+              {payouts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-6">
+                    No payouts processed yet.
                   </TableCell>
-                  <TableCell className="tabular text-right text-muted-foreground">
-                    {p.orders}
-                  </TableCell>
-                  <TableCell className="tabular text-right">{p.amount}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                payouts.map((p) => (
+                  <TableRow key={p.ref}>
+                    <TableCell className="tabular font-medium">{p.ref}</TableCell>
+                    <TableCell className="tabular hidden text-muted-foreground sm:table-cell">
+                      {p.period}
+                    </TableCell>
+                    <TableCell className="tabular text-right text-muted-foreground">
+                      {p.orders}
+                    </TableCell>
+                    <TableCell className="tabular text-right">{p.amount}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Panel>

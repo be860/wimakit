@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -16,6 +17,8 @@ import {
   PanelLeftOpen,
 } from 'lucide-react'
 
+import { adminApi } from '@/lib/admin/api'
+import { useAuth } from '@/components/providers/auth-provider'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -25,21 +28,6 @@ type NavItem = {
   icon: React.ComponentType<{ className?: string }>
   badge?: number
 }
-
-const primaryNav: NavItem[] = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/farmers', label: 'Farmers', icon: Sprout, badge: 148 },
-  { href: '/admin/buyers', label: 'Buyers', icon: Store },
-  { href: '/admin/products', label: 'Products', icon: PackageSearch, badge: 76 },
-  { href: '/admin/fraud-cases', label: 'Fraud Cases', icon: ShieldAlert, badge: 19 },
-]
-
-const secondaryNav: NavItem[] = [
-  { href: '/admin/categories', label: 'Categories', icon: Tags },
-  { href: '/admin/audit-log', label: 'Audit Log', icon: ScrollText },
-  { href: '/admin/notifications', label: 'Broadcast', icon: Megaphone },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
-]
 
 function isActive(pathname: string, href: string) {
   if (href === '/admin') return pathname === '/admin'
@@ -113,6 +101,41 @@ export function AdminSidebar({
   onToggle: () => void
 }) {
   const pathname = usePathname()
+  const [counts, setCounts] = React.useState<{
+    farmers?: number
+    products?: number
+    fraudCases?: number
+  }>({})
+
+  React.useEffect(() => {
+    adminApi.getMetrics()
+      .then((m) =>
+        setCounts({
+          farmers: m.totalFarmers,
+          products: m.activeProductListings,
+          fraudCases: m.openFraudCases,
+        }),
+      )
+      .catch(() => {})
+  }, [])
+
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'SuperAdmin' || user?.role === 'superadmin'
+
+  const primaryNav: NavItem[] = [
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/farmers', label: 'Farmers', icon: Sprout, badge: counts.farmers },
+    { href: '/admin/buyers', label: 'Buyers', icon: Store },
+    { href: '/admin/products', label: 'Products', icon: PackageSearch, badge: counts.products },
+    { href: '/admin/fraud-cases', label: 'Fraud Cases', icon: ShieldAlert, badge: counts.fraudCases },
+  ]
+
+  const secondaryNav: NavItem[] = [
+    { href: '/admin/categories', label: 'Categories', icon: Tags },
+    ...(isSuperAdmin ? [{ href: '/admin/audit-log', label: 'Audit Log', icon: ScrollText }] : []),
+    { href: '/admin/notifications', label: 'Broadcast', icon: Megaphone },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
+  ]
 
   return (
     <aside

@@ -79,7 +79,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col gap-0.5 p-2">
-            {mobileNav.map((item) => {
+            {mobileNav
+              .filter((item) => item.href !== '/admin/audit-log' || user?.role === 'SuperAdmin' || user?.role === 'superadmin')
+              .map((item) => {
               const Icon = item.icon
               const active =
                 item.href === '/admin'
