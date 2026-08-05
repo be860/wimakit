@@ -32,8 +32,8 @@ export default function NotificationsPage() {
   // Load existing notifications (null userId = global broadcasts)
   React.useEffect(() => {
     adminApi.getNotifications()
-      .then((items) => setBroadcasts(items.filter((n) => n.userId === null || n.userId === undefined)))
-      .catch(() => {})
+      .then((items) => setBroadcasts(Array.isArray(items) ? items.filter((n) => n.userId === null || n.userId === undefined) : []))
+      .catch(() => setBroadcasts([]))
       .finally(() => setLoading(false))
   }, [])
 

@@ -1,4 +1,6 @@
-import type { Metadata } from 'next'
+'use client'
+
+import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,10 +40,6 @@ const toggles = [
   },
 ]
 
-export const metadata: Metadata = {
-  title: 'Settings',
-}
-
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
@@ -69,13 +67,7 @@ export default function SettingsPage() {
             </Field>
             <Field>
               <FieldLabel htmlFor="currency">Display currency</FieldLabel>
-              <Select
-                defaultValue="sll"
-                items={{
-                  sll: 'Sierra Leonean Leone (Le)',
-                  usd: 'US Dollar ($)',
-                }}
-              >
+              <Select defaultValue="sll">
                 <SelectTrigger id="currency">
                   <SelectValue />
                 </SelectTrigger>
@@ -99,10 +91,7 @@ export default function SettingsPage() {
             </Field>
             <Field>
               <FieldLabel htmlFor="payout-schedule">Payout schedule</FieldLabel>
-              <Select
-                defaultValue="weekly"
-                items={{ daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-weekly' }}
-              >
+              <Select defaultValue="weekly">
                 <SelectTrigger id="payout-schedule">
                   <SelectValue />
                 </SelectTrigger>
