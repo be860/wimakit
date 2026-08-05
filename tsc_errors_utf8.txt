@@ -1,0 +1,27 @@
+app/admin/page.tsx(150,17): error TS2322: Type 'number | null' is not assignable to type 'number'.
+  Type 'null' is not assignable to type 'number'.
+app/admin/page.tsx(154,17): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+components/auth/sign-up-form.tsx(359,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+components/farmer/orders-view.tsx(99,51): error TS7006: Parameter 'v' implicitly has an 'any' type.
+components/farmer/orders-view.tsx(188,24): error TS7006: Parameter 'open' implicitly has an 'any' type.
+components/farmer/products-view.tsx(276,35): error TS7006: Parameter 'v' implicitly has an 'any' type.
+components/ui/avatar.tsx(4,43): error TS2307: Cannot find module '@base-ui/react/avatar' or its corresponding type declarations.
+components/ui/badge.tsx(1,28): error TS2307: Cannot find module '@base-ui/react/merge-props' or its corresponding type declarations.
+components/ui/badge.tsx(2,27): error TS2307: Cannot find module '@base-ui/react/use-render' or its corresponding type declarations.
+components/ui/button-group.tsx(1,28): error TS2307: Cannot find module '@base-ui/react/merge-props' or its corresponding type declarations.
+components/ui/button-group.tsx(2,27): error TS2307: Cannot find module '@base-ui/react/use-render' or its corresponding type declarations.
+components/ui/button.tsx(1,43): error TS2307: Cannot find module '@base-ui/react/button' or its corresponding type declarations.
+components/ui/chart.tsx(5,15): error TS2305: Module '"recharts"' has no exported member 'TooltipValueType'.
+components/ui/checkbox.tsx(3,47): error TS2307: Cannot find module '@base-ui/react/checkbox' or its corresponding type declarations.
+components/ui/dialog.tsx(4,43): error TS2307: Cannot find module '@base-ui/react/dialog' or its corresponding type declarations.
+components/ui/dropdown-menu.tsx(4,39): error TS2307: Cannot find module '@base-ui/react/menu' or its corresponding type declarations.
+components/ui/input.tsx(2,41): error TS2307: Cannot find module '@base-ui/react/input' or its corresponding type declarations.
+components/ui/progress.tsx(3,47): error TS2307: Cannot find module '@base-ui/react/progress' or its corresponding type declarations.
+components/ui/scroll-area.tsx(4,51): error TS2307: Cannot find module '@base-ui/react/scroll-area' or its corresponding type declarations.
+components/ui/select.tsx(4,43): error TS2307: Cannot find module '@base-ui/react/select' or its corresponding type declarations.
+components/ui/separator.tsx(3,49): error TS2307: Cannot find module '@base-ui/react/separator' or its corresponding type declarations.
+components/ui/sheet.tsx(4,42): error TS2307: Cannot find module '@base-ui/react/dialog' or its corresponding type declarations.
+components/ui/switch.tsx(3,43): error TS2307: Cannot find module '@base-ui/react/switch' or its corresponding type declarations.
+components/ui/tabs.tsx(3,39): error TS2307: Cannot find module '@base-ui/react/tabs' or its corresponding type declarations.
+components/ui/tooltip.tsx(3,45): error TS2307: Cannot find module '@base-ui/react/tooltip' or its corresponding type declarations.
