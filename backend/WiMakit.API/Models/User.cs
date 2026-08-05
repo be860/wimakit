@@ -83,7 +83,7 @@ namespace WiMakit.API.Models
 
         [Required]
         [MaxLength(30)]
-        public string VerificationStatus { get; set; } = "Approved"; // "Pending", "Approved", "Rejected", "Suspended"
+        public string VerificationStatus { get; set; } = "Pending"; // "Pending", "Approved", "Rejected", "Suspended"
 
         [Required]
         [MaxLength(30)]

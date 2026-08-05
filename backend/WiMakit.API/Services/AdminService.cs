@@ -19,10 +19,10 @@ namespace WiMakit.API.Services
             var now = DateTime.UtcNow;
             var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var totalFarmers = await _context.Users.CountAsync(u => u.Role == "farmer");
-            var totalBuyers = await _context.Users.CountAsync(u => u.Role == "buyer");
+            var totalFarmers = await _context.Users.CountAsync(u => u.Role.ToLower() == "farmer");
+            var totalBuyers = await _context.Users.CountAsync(u => u.Role.ToLower() == "buyer");
 
-            var pendingFarmers = await _context.Users.CountAsync(u => u.Role == "farmer" && u.VerificationStatus == "Pending");
+            var pendingFarmers = await _context.Users.CountAsync(u => u.Role.ToLower() == "farmer" && (string.IsNullOrEmpty(u.VerificationStatus) || u.VerificationStatus.ToLower() == "pending"));
             var pendingProducts = await _context.Produces.CountAsync(p => p.Status == "Pending");
             var openFraudCases = await _context.FraudCases.CountAsync(f => f.Status == "Open" || f.Status == "Under Review");
 
@@ -115,19 +115,26 @@ namespace WiMakit.API.Services
         public async Task<IEnumerable<FarmerAdminDTO>> GetFarmersAsync(string? status, string? search, string? district)
         {
             var query = _context.Users
-                .Where(u => u.Role == "farmer")
+                .Where(u => u.Role.ToLower() == "farmer")
                 .AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(status))
             {
                 var s = status.Trim().ToLowerInvariant();
-                query = query.Where(u => u.VerificationStatus.ToLower() == s || u.Status.ToLower() == s);
+                if (s == "pending")
+                {
+                    query = query.Where(u => string.IsNullOrEmpty(u.VerificationStatus) || u.VerificationStatus.ToLower() == "pending" || u.Status.ToLower() == "pending");
+                }
+                else
+                {
+                    query = query.Where(u => u.VerificationStatus.ToLower() == s || u.Status.ToLower() == s);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(district))
             {
                 var d = district.Trim().ToLowerInvariant();
-                query = query.Where(u => u.District != null && u.District.ToLower() == d);
+                query = query.Where(u => (u.District != null && u.District.ToLower() == d) || (u.Location != null && u.Location.ToLower() == d));
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -159,16 +166,16 @@ namespace WiMakit.API.Services
                 Email = f.Email,
                 Nin = f.NIN,
                 Phone = f.Phone,
-                District = f.District,
+                District = !string.IsNullOrEmpty(f.District) ? f.District : (!string.IsNullOrEmpty(f.Location) ? f.Location : "Western Area Rural"),
                 Chiefdom = f.Chiefdom,
                 Community = f.Community,
                 Crops = !string.IsNullOrEmpty(f.PrimaryCrops)
                     ? f.PrimaryCrops.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList()
                     : new List<string>(),
                 FarmSize = f.FarmSize,
-                Status = f.VerificationStatus,
+                Status = !string.IsNullOrEmpty(f.VerificationStatus) ? f.VerificationStatus : "Pending",
                 TrustScore = f.TrustScore,
-                Verified = f.VerificationStatus == "Approved",
+                Verified = string.Equals(f.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase),
                 Submitted = f.CreatedAt,
                 Listings = f.Produces.Count,
                 TotalSales = salesMap.TryGetValue(f.Id, out var sales) ? sales : 0m

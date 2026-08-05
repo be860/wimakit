@@ -61,10 +61,13 @@ namespace WiMakit.API.Controllers
                 Role = role,
                 Phone = request.Phone,
                 Location = request.Location,
+                District = request.Location,
                 FarmSize = request.FarmSize,
                 FarmingExperience = request.FarmingExperience,
                 BusinessName = request.BusinessName,
                 BusinessType = request.BusinessType,
+                VerificationStatus = role == "farmer" ? "Pending" : "Approved",
+                Status = "Active",
                 IsEmailVerified = false,
                 EmailVerificationToken = verificationToken,
                 EmailVerificationExpiry = DateTime.UtcNow.AddMinutes(15)
@@ -240,9 +243,12 @@ namespace WiMakit.API.Controllers
                     Email = email,
                     GoogleId = googleId,
                     PasswordHash = null,
-                    Role = role,
+                    Role = role ?? "buyer",
                     Phone = request.Phone,
                     Location = request.Location,
+                    District = request.Location,
+                    VerificationStatus = role == "farmer" ? "Pending" : "Approved",
+                    Status = "Active",
                     IsEmailVerified = true,
                 };
 
