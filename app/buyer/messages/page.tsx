@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
-import { BuyerNav } from "@/components/buyer-nav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,74 +34,71 @@ export default function BuyerMessagesPage() {
         setIsLoading(false)
       }
     }
-
-    if (user) {
-      fetchConversations()
-    }
+    if (user) fetchConversations()
   }, [user])
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <BuyerNav />
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Messages</h1>
+        <p className="text-muted-foreground">Chat with farmers about their produce</p>
+      </div>
 
-      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Messages</h1>
-          <p className="text-muted-foreground">Chat with farmers about their produce</p>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">Loading conversations...</p>
         </div>
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading conversations...</p>
-          </div>
-        ) : conversations.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">No conversations yet</h3>
-              <p className="text-sm text-muted-foreground">Start browsing produce and contact farmers</p>
-              <Link href="/buyer/browse">
-                <Button className="mt-4">Browse Produce</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {conversations.map((conversation) => (
-              <Link key={conversation.userId} href={`/buyer/messages/${conversation.userId}`}>
-                <Card className="hover:border-primary transition-colors cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground">{conversation.userName}</h3>
-                          {conversation.unreadCount > 0 && (
-                            <Badge className="bg-accent text-accent-foreground">{conversation.unreadCount} new</Badge>
-                          )}
-                        </div>
-                        {conversation.produceName && (
-                          <p className="text-sm text-muted-foreground mb-2">
-                            Regarding: <span className="text-primary">{conversation.produceName}</span>
-                          </p>
+      ) : conversations.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="font-semibold text-foreground mb-2">No conversations yet</h3>
+            <p className="text-sm text-muted-foreground">Start browsing produce and contact farmers</p>
+            <Link href="/buyer/browse">
+              <Button className="mt-4">Browse Produce</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {conversations.map((conversation) => (
+            <Link key={conversation.userId} href={`/buyer/messages/${conversation.userId}`}>
+              <Card className="hover:border-primary transition-colors cursor-pointer">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{conversation.userName}</h3>
+                        {conversation.unreadCount > 0 && (
+                          <Badge className="bg-accent text-accent-foreground">{conversation.unreadCount} new</Badge>
                         )}
-                        <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                       </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(conversation.lastMessageTime).toLocaleDateString()}
-                      </span>
+                      {conversation.produceName && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Regarding: <span className="text-primary">{conversation.produceName}</span>
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </main>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(conversation.lastMessageTime).toLocaleDateString()}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
