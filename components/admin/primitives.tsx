@@ -77,7 +77,7 @@ export function StatCard({
 }: {
   label: string
   value: string
-  delta?: number
+  delta?: number | null      // was: delta?: number
   deltaLabel?: string
   icon: React.ComponentType<{ className?: string }>
   emphasis?: boolean
@@ -100,7 +100,7 @@ export function StatCard({
         </span>
       </div>
       <p className="font-display tabular mt-3 text-2xl">{value}</p>
-      {delta !== undefined && (
+      {delta !== undefined && delta !== null && (
         <div className="mt-1.5">
           <Trend value={delta} label={deltaLabel} invertGood={invertGood} />
         </div>
