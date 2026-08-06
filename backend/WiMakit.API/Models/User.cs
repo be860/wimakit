@@ -46,6 +46,18 @@ namespace WiMakit.API.Models
         [MaxLength(50)]
         public string? NIN { get; set; }
 
+        /// <summary>Type of ID document uploaded: "National ID", "Voter Card", or "Passport".</summary>
+        [MaxLength(30)]
+        public string? IdDocumentType { get; set; }
+
+        /// <summary>Supabase Storage URL of the front image of the uploaded ID document.</summary>
+        [MaxLength(500)]
+        public string? IdDocumentFrontUrl { get; set; }
+
+        /// <summary>Supabase Storage URL of the back image of the uploaded ID document.</summary>
+        [MaxLength(500)]
+        public string? IdDocumentBackUrl { get; set; }
+
         [MaxLength(50)]
         public string? District { get; set; }
 

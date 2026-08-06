@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace WiMakit.API.DTOs
 {
@@ -47,6 +48,16 @@ namespace WiMakit.API.DTOs
 
         [MaxLength(50, ErrorMessage = "Business type cannot exceed 50 characters.")]
         public string? BusinessType { get; set; }
+
+        [MaxLength(50, ErrorMessage = "NIN cannot exceed 50 characters.")]
+        public string? NIN { get; set; }
+
+        [MaxLength(30, ErrorMessage = "Document type cannot exceed 30 characters.")]
+        public string? IdDocumentType { get; set; }
+
+        public IFormFile? IdDocumentFront { get; set; }
+
+        public IFormFile? IdDocumentBack { get; set; }
     }
 
     public class LoginRequest
@@ -95,6 +106,10 @@ namespace WiMakit.API.DTOs
         public bool IsEmailVerified { get; set; }
         public bool MustChangePassword { get; set; }
         public bool HasGoogleAuth { get; set; }
+        public string? NIN { get; set; }
+        public string? IdDocumentType { get; set; }
+        public string? IdDocumentFrontUrl { get; set; }
+        public string? IdDocumentBackUrl { get; set; }
     }
 
     public class ChangePasswordRequest

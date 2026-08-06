@@ -21,24 +21,27 @@ namespace WiMakit.API.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly IFileStorageService _fileStorage;
         private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             AppDbContext context,
             IConfiguration configuration,
             IEmailService emailService,
+            IFileStorageService fileStorage,
             ILogger<AuthController> logger)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
+            _fileStorage = fileStorage;
             _logger = logger;
         }
 
         // ── Register ──────────────────────────────────────────────────────────
         [HttpPost("register")]
         [EnableRateLimiting("auth-register")]
-        public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+        public async Task<ActionResult<AuthResponse>> Register([FromForm] RegisterRequest request)
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
             var role = request.Role.Trim().ToLowerInvariant();
@@ -48,6 +51,47 @@ namespace WiMakit.API.Controllers
 
             if (await _context.Users.AnyAsync(u => u.Email == normalizedEmail))
                 return BadRequest(new { message = "Email is already registered" });
+
+            // ── Farmer ID verification ─────────────────────────────────────
+            string? idDocFrontUrl = null;
+            string? idDocBackUrl = null;
+
+            if (role == "farmer")
+            {
+                if (string.IsNullOrWhiteSpace(request.NIN))
+                    return BadRequest(new { message = "NIN (National Identification Number) is required for farmer registration." });
+
+                var docType = request.IdDocumentType?.Trim();
+                if (string.IsNullOrWhiteSpace(docType) || docType is not ("National ID" or "Voter Card" or "Passport"))
+                    return BadRequest(new { message = "Please select a valid document type (National ID, Voter Card, or Passport)." });
+
+                if (docType is "National ID" or "Voter Card")
+                {
+                    if (request.IdDocumentFront == null || request.IdDocumentFront.Length == 0)
+                        return BadRequest(new { message = $"{docType} front image is required." });
+                    if (request.IdDocumentBack == null || request.IdDocumentBack.Length == 0)
+                        return BadRequest(new { message = $"{docType} back image is required." });
+
+                    var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                    const long maxSize = 5 * 1024 * 1024; // 5 MB
+
+                    var frontExt = Path.GetExtension(request.IdDocumentFront.FileName).ToLowerInvariant();
+                    var backExt = Path.GetExtension(request.IdDocumentBack.FileName).ToLowerInvariant();
+
+                    if (!allowedExts.Contains(frontExt) || !allowedExts.Contains(backExt))
+                        return BadRequest(new { message = "ID document images must be JPG, PNG, or WebP." });
+
+                    if (request.IdDocumentFront.Length > maxSize || request.IdDocumentBack.Length > maxSize)
+                        return BadRequest(new { message = "Each ID image must be under 5 MB." });
+
+                    var idBucket = _configuration["Supabase:IdDocumentsBucket"] ?? "id-documents";
+                    idDocFrontUrl = await _fileStorage.UploadImageAsync(request.IdDocumentFront, idBucket);
+                    idDocBackUrl = await _fileStorage.UploadImageAsync(request.IdDocumentBack, idBucket);
+
+                    if (idDocFrontUrl == null || idDocBackUrl == null)
+                        return StatusCode(503, new { message = "Could not upload ID images. Please check storage bucket configuration." });
+                }
+            }
 
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var verificationToken = GenerateOtp();
@@ -62,6 +106,10 @@ namespace WiMakit.API.Controllers
                 Phone = request.Phone,
                 Location = request.Location,
                 District = request.Location,
+                NIN = request.NIN?.Trim(),
+                IdDocumentType = request.IdDocumentType?.Trim(),
+                IdDocumentFrontUrl = idDocFrontUrl,
+                IdDocumentBackUrl = idDocBackUrl,
                 FarmSize = request.FarmSize,
                 FarmingExperience = request.FarmingExperience,
                 BusinessName = request.BusinessName,
@@ -484,7 +532,11 @@ public async Task<IActionResult> Logout(RefreshTokenRequest request)
             BusinessType = user.BusinessType,
             IsEmailVerified = user.IsEmailVerified,
             MustChangePassword = user.MustChangePassword,
-            HasGoogleAuth = user.GoogleId != null
+            HasGoogleAuth = user.GoogleId != null,
+            NIN = user.NIN,
+            IdDocumentType = user.IdDocumentType,
+            IdDocumentFrontUrl = user.IdDocumentFrontUrl,
+            IdDocumentBackUrl = user.IdDocumentBackUrl
         };
     }
 }

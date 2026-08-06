@@ -12,6 +12,8 @@ import {
   Sprout,
   UserRound,
   TriangleAlert,
+  Upload,
+  X,
 } from 'lucide-react'
 
 import { apiClient } from '@/lib/api-client'
@@ -107,12 +109,51 @@ export function SignUpForm() {
   const [idType, setIdType] = React.useState('National ID')
   const [idNumber, setIdNumber] = React.useState('')
   const [consent, setConsent] = React.useState(false)
+  const [idFrontFile, setIdFrontFile] = React.useState<File | null>(null)
+  const [idBackFile, setIdBackFile] = React.useState<File | null>(null)
+  const [idFrontPreview, setIdFrontPreview] = React.useState<string | null>(null)
+  const [idBackPreview, setIdBackPreview] = React.useState<string | null>(null)
 
   function toggleCrop(crop: string) {
     setCrops((prev: string[]) =>
       prev.includes(crop) ? prev.filter((c: string) => c !== crop) : [...prev, crop],
     )
   }
+
+  function handleFileSelect(
+    file: File | null,
+    setFile: React.Dispatch<React.SetStateAction<File | null>>,
+    setPreview: React.Dispatch<React.SetStateAction<string | null>>,
+  ) {
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMsg('Please select a JPG, PNG, or WebP image.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Image must be under 5 MB.')
+      return
+    }
+    setErrorMsg(null)
+    setFile(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  function clearFile(
+    setFile: React.Dispatch<React.SetStateAction<File | null>>,
+    setPreview: React.Dispatch<React.SetStateAction<string | null>>,
+  ) {
+    setFile(null)
+    setPreview(null)
+  }
+
+  React.useEffect(() => {
+    setIdFrontFile(null)
+    setIdBackFile(null)
+    setIdFrontPreview(null)
+    setIdBackPreview(null)
+  }, [idType])
 
   async function next(e: React.FormEvent) {
     e.preventDefault()
@@ -134,17 +175,22 @@ export function SignUpForm() {
 
     setPending(true)
     try {
-      await apiClient.post('/api/auth/register', {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
-        password,
-        role: 'farmer',
-        phone: phone.trim() || null,
-        location: district || farmName || 'Sierra Leone',
-        farmSize: size || '1 - 5 Acres',
-        farmingExperience: '1-3 Years',
-      })
+      const formData = new FormData()
+      formData.append('firstName', firstName.trim())
+      formData.append('lastName', lastName.trim())
+      formData.append('email', email.trim())
+      formData.append('password', password)
+      formData.append('role', 'farmer')
+      if (phone.trim()) formData.append('phone', phone.trim())
+      formData.append('location', district || farmName || 'Sierra Leone')
+      formData.append('farmSize', size || '1 - 5 Acres')
+      formData.append('farmingExperience', '1-3 Years')
+      formData.append('nin', idNumber.trim())
+      formData.append('idDocumentType', idType)
+      if (idFrontFile) formData.append('idDocumentFront', idFrontFile)
+      if (idBackFile) formData.append('idDocumentBack', idBackFile)
+
+      await apiClient.post('/api/auth/register', formData)
 
       setPending(false)
       router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`)
@@ -414,28 +460,113 @@ export function SignUpForm() {
                     </div>
 
                     <Field>
+                      <FieldLabel htmlFor="idNumber">NIN (National Identification Number)</FieldLabel>
+                      <Input
+                        id="idNumber"
+                        required
+                        placeholder="e.g. SL-1994-0821-X"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                      />
+                    </Field>
+
+                    <Field>
                       <FieldLabel htmlFor="idType">Type of document</FieldLabel>
                       <Select value={idType} onValueChange={(val) => setIdType(val ?? '')}>
                         <SelectTrigger id="idType">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="National ID">Sierra Leone National ID (NIN)</SelectItem>
+                          <SelectItem value="National ID">Sierra Leone National ID</SelectItem>
                           <SelectItem value="Voter Card">Voter Identity Card</SelectItem>
                           <SelectItem value="Passport">Passport</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="idNumber">Document / NIN number <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
-                      <Input
-                        id="idNumber"
-                        placeholder="e.g. SL-1994-0821-X"
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                      />
-                    </Field>
+                    {(idType === 'National ID' || idType === 'Voter Card') && (
+                      <>
+                        <Field>
+                          <FieldLabel>{idType} – Front</FieldLabel>
+                          {idFrontPreview ? (
+                            <div className="relative rounded-lg border border-border overflow-hidden">
+                              <img
+                                src={idFrontPreview}
+                                alt={`${idType} front preview`}
+                                className="w-full h-36 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => clearFile(setIdFrontFile, setIdFrontPreview)}
+                                className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background transition-colors"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label
+                              htmlFor="idFront"
+                              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/30 px-4 py-6 text-center transition-colors hover:border-farmer/50 hover:bg-farmer/5"
+                            >
+                              <Upload className="size-6 text-muted-foreground" />
+                              <div>
+                                <p className="text-xs font-medium text-foreground">Upload front of {idType}</p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">JPG, PNG, or WebP · Max 5 MB</p>
+                              </div>
+                              <input
+                                id="idFront"
+                                type="file"
+                                className="sr-only"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                onChange={(e) =>
+                                  handleFileSelect(e.target.files?.[0] ?? null, setIdFrontFile, setIdFrontPreview)
+                                }
+                              />
+                            </label>
+                          )}
+                        </Field>
+
+                        <Field>
+                          <FieldLabel>{idType} – Back</FieldLabel>
+                          {idBackPreview ? (
+                            <div className="relative rounded-lg border border-border overflow-hidden">
+                              <img
+                                src={idBackPreview}
+                                alt={`${idType} back preview`}
+                                className="w-full h-36 object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => clearFile(setIdBackFile, setIdBackPreview)}
+                                className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background transition-colors"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label
+                              htmlFor="idBack"
+                              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/30 px-4 py-6 text-center transition-colors hover:border-farmer/50 hover:bg-farmer/5"
+                            >
+                              <Upload className="size-6 text-muted-foreground" />
+                              <div>
+                                <p className="text-xs font-medium text-foreground">Upload back of {idType}</p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">JPG, PNG, or WebP · Max 5 MB</p>
+                              </div>
+                              <input
+                                id="idBack"
+                                type="file"
+                                className="sr-only"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                onChange={(e) =>
+                                  handleFileSelect(e.target.files?.[0] ?? null, setIdBackFile, setIdBackPreview)
+                                }
+                              />
+                            </label>
+                          )}
+                        </Field>
+                      </>
+                    )}
 
                     <Field>
                       <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary/40 px-3.5 py-3">
@@ -470,7 +601,14 @@ export function SignUpForm() {
 
                   <Button
                     type="submit"
-                    disabled={pending || (step === 3 && !consent)}
+                    disabled={
+                      pending ||
+                      (step === 3 &&
+                        (!consent ||
+                          !idNumber.trim() ||
+                          ((idType === 'National ID' || idType === 'Voter Card') &&
+                            (!idFrontFile || !idBackFile))))
+                    }
                     className="bg-farmer text-background hover:bg-farmer/90"
                   >
                     {pending ? (

@@ -5,9 +5,14 @@ namespace WiMakit.API.Services
     public interface IFileStorageService
     {
         /// <summary>
-        /// Uploads a file to cloud storage and returns its public URL, or null on failure.
+        /// Uploads a file to cloud storage in the default bucket and returns its public URL, or null on failure.
         /// </summary>
         Task<string?> UploadImageAsync(IFormFile file);
+
+        /// <summary>
+        /// Uploads a file to a specific cloud storage bucket and returns its public URL, or null on failure.
+        /// </summary>
+        Task<string?> UploadImageAsync(IFormFile file, string targetBucket);
     }
 
     /// <summary>
@@ -39,15 +44,20 @@ namespace WiMakit.API.Services
             _logger = logger;
         }
 
-        public async Task<string?> UploadImageAsync(IFormFile file)
+        public Task<string?> UploadImageAsync(IFormFile file)
+        {
+            var defaultBucket = _configuration["Supabase:Bucket"];
+            return UploadImageAsync(file, defaultBucket ?? "produce-images");
+        }
+
+        public async Task<string?> UploadImageAsync(IFormFile file, string targetBucket)
         {
             var supabaseUrl = _configuration["Supabase:Url"]?.TrimEnd('/');
             var serviceRoleKey = _configuration["Supabase:ServiceRoleKey"];
-            var bucket = _configuration["Supabase:Bucket"];
 
-            if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(serviceRoleKey) || string.IsNullOrWhiteSpace(bucket))
+            if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(serviceRoleKey) || string.IsNullOrWhiteSpace(targetBucket))
             {
-                _logger.LogError("Supabase:Url, Supabase:ServiceRoleKey, or Supabase:Bucket is not configured. Cannot upload image.");
+                _logger.LogError("Supabase:Url, Supabase:ServiceRoleKey, or target bucket is not configured. Cannot upload image.");
                 return null;
             }
 
@@ -55,7 +65,7 @@ namespace WiMakit.API.Services
             {
                 var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                 var fileName = $"{Guid.NewGuid()}{extension}";
-                var objectPath = $"{bucket}/{fileName}";
+                var objectPath = $"{targetBucket}/{fileName}";
                 var uploadUrl = $"{supabaseUrl}/storage/v1/object/{objectPath}";
 
                 await using var stream = file.OpenReadStream();
@@ -80,7 +90,7 @@ namespace WiMakit.API.Services
                     return null;
                 }
 
-                // Requires the bucket to be set to "Public" in the Supabase dashboard.
+                // Returns public object URL
                 return $"{supabaseUrl}/storage/v1/object/public/{objectPath}";
             }
             catch (Exception ex)
