@@ -62,8 +62,8 @@ namespace WiMakit.API.Controllers
                     return BadRequest(new { message = "NIN (National Identification Number) is required for farmer registration." });
 
                 var docType = request.IdDocumentType?.Trim();
-                if (string.IsNullOrWhiteSpace(docType) || docType is not ("National ID" or "Voter Card" or "Passport"))
-                    return BadRequest(new { message = "Please select a valid document type (National ID, Voter Card, or Passport)." });
+                if (string.IsNullOrWhiteSpace(docType) || docType is not ("National ID" or "Voter Card"))
+                    return BadRequest(new { message = "Please select a valid document type (National ID or Voter Card)." });
 
                 if (docType is "National ID" or "Voter Card")
                 {
@@ -93,6 +93,40 @@ namespace WiMakit.API.Controllers
                 }
             }
 
+            // ── Farmer profile & farm photos ─────────────────────────────────
+            string? profilePhotoUrl = null;
+            string? farmPhotoUrl = null;
+
+            if (role == "farmer")
+            {
+                if (request.ProfilePhoto == null || request.ProfilePhoto.Length == 0)
+                    return BadRequest(new { message = "A profile photo is required for farmer registration." });
+
+                if (request.FarmPhoto == null || request.FarmPhoto.Length == 0)
+                    return BadRequest(new { message = "A photo of your farm is required for farmer registration." });
+
+                var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                const long maxSize = 5 * 1024 * 1024; // 5 MB
+
+                var profileExt = Path.GetExtension(request.ProfilePhoto.FileName).ToLowerInvariant();
+                var farmExt = Path.GetExtension(request.FarmPhoto.FileName).ToLowerInvariant();
+
+                if (!allowedExts.Contains(profileExt) || !allowedExts.Contains(farmExt))
+                    return BadRequest(new { message = "Profile and farm photos must be JPG, PNG, or WebP." });
+
+                if (request.ProfilePhoto.Length > maxSize || request.FarmPhoto.Length > maxSize)
+                    return BadRequest(new { message = "Each photo must be under 5 MB." });
+
+                var profileBucket = _configuration["Supabase:ProfilePhotosBucket"] ?? "profile-photos";
+                var farmBucket = _configuration["Supabase:FarmPhotosBucket"] ?? "farm-photos";
+
+                profilePhotoUrl = await _fileStorage.UploadImageAsync(request.ProfilePhoto, profileBucket);
+                farmPhotoUrl = await _fileStorage.UploadImageAsync(request.FarmPhoto, farmBucket);
+
+                if (profilePhotoUrl == null || farmPhotoUrl == null)
+                    return StatusCode(503, new { message = "Could not upload your photos. Please check storage bucket configuration." });
+            }
+
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             var verificationToken = GenerateOtp();
 
@@ -110,6 +144,8 @@ namespace WiMakit.API.Controllers
                 IdDocumentType = request.IdDocumentType?.Trim(),
                 IdDocumentFrontUrl = idDocFrontUrl,
                 IdDocumentBackUrl = idDocBackUrl,
+                ProfilePhotoUrl = profilePhotoUrl,
+                FarmPhotoUrl = farmPhotoUrl,
                 FarmSize = request.FarmSize,
                 FarmingExperience = request.FarmingExperience,
                 BusinessName = request.BusinessName,
@@ -536,7 +572,9 @@ public async Task<IActionResult> Logout(RefreshTokenRequest request)
             NIN = user.NIN,
             IdDocumentType = user.IdDocumentType,
             IdDocumentFrontUrl = user.IdDocumentFrontUrl,
-            IdDocumentBackUrl = user.IdDocumentBackUrl
+            IdDocumentBackUrl = user.IdDocumentBackUrl,
+            ProfilePhotoUrl = user.ProfilePhotoUrl,
+            FarmPhotoUrl = user.FarmPhotoUrl
         };
     }
 }

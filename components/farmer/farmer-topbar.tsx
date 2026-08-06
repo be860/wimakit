@@ -122,7 +122,11 @@ export function FarmerTopbar() {
                 </div>
               ) : (
                 notifications.slice(0, 4).map((n) => (
-                  <DropdownMenuItem key={n.id} className="items-start gap-2.5 py-2">
+                  <DropdownMenuItem
+                    key={n.id}
+                    className="items-start gap-2.5 py-2 cursor-pointer"
+                    onClick={() => router.push('/farmer/notifications')}
+                  >
                     <span
                       aria-hidden
                       className={cn(

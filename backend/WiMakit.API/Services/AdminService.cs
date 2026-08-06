@@ -8,10 +8,14 @@ namespace WiMakit.API.Services
     public class AdminService : IAdminService
     {
         private readonly AppDbContext _context;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<AdminService> _logger;
 
-        public AdminService(AppDbContext context)
+        public AdminService(AppDbContext context, IEmailService emailService, ILogger<AdminService> logger)
         {
             _context = context;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         public async Task<AdminMetricsDTO> GetAdminMetricsAsync()
@@ -165,10 +169,19 @@ namespace WiMakit.API.Services
                 Name = f.FullName,
                 Email = f.Email,
                 Nin = f.NIN,
+                IdDocumentType = f.IdDocumentType,
+                IdDocumentFrontUrl = f.IdDocumentFrontUrl,
+                IdDocumentBackUrl = f.IdDocumentBackUrl,
+                ProfilePhotoUrl = f.ProfilePhotoUrl,
+                FarmPhotoUrl = f.FarmPhotoUrl,
                 Phone = f.Phone,
                 District = !string.IsNullOrEmpty(f.District) ? f.District : (!string.IsNullOrEmpty(f.Location) ? f.Location : "Western Area Rural"),
                 Chiefdom = f.Chiefdom,
                 Community = f.Community,
+                FarmName = f.FarmName,
+                FarmAddress = f.FarmAddress,
+                FarmDescription = f.FarmDescription,
+                FarmingExperience = f.FarmingExperience,
                 Crops = !string.IsNullOrEmpty(f.PrimaryCrops)
                     ? f.PrimaryCrops.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList()
                     : new List<string>(),
@@ -194,6 +207,8 @@ namespace WiMakit.API.Services
             if (user == null) return false;
 
             user.VerificationStatus = status;
+            string? temporaryPassword = null;
+
             if (status == "Suspended")
             {
                 user.Status = "Suspended";
@@ -203,6 +218,13 @@ namespace WiMakit.API.Services
                 user.Status = "Active";
                 user.ApprovedBy = adminName;
                 user.ApprovalDate = DateTime.UtcNow;
+
+                // Issue a fresh one-time password and require the farmer to change it
+                // on first login. This is emailed to the farmer below.
+                temporaryPassword = GenerateTemporaryPassword();
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(temporaryPassword);
+                user.MustChangePassword = true;
+                user.IsEmailVerified = true;
             }
 
             user.UpdatedAt = DateTime.UtcNow;
@@ -219,7 +241,31 @@ namespace WiMakit.API.Services
             });
 
             await _context.SaveChangesAsync();
+
+            if (status == "Approved" && temporaryPassword != null)
+            {
+                var emailSent = await _emailService.SendFarmerApprovalEmailAsync(user.Email, user.FullName, temporaryPassword);
+                if (!emailSent)
+                {
+                    _logger.LogWarning("Farmer approval email could not be sent to {Email} (farmer id {Id}).", user.Email, user.Id);
+                }
+            }
+
             return true;
+        }
+
+        private static string GenerateTemporaryPassword()
+        {
+            // 10-character password drawn from an unambiguous alphabet (no 0/O/1/I/l),
+            // mixing letters and digits so it reads clearly in an email.
+            const string alphabet = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(10);
+            var chars = new char[10];
+            for (var i = 0; i < chars.Length; i++)
+            {
+                chars[i] = alphabet[bytes[i] % alphabet.Length];
+            }
+            return new string(chars);
         }
 
         public async Task<IEnumerable<BuyerAdminDTO>> GetBuyersAsync(string? status, string? search)

@@ -16,7 +16,7 @@ namespace WiMakit.API.Controllers
             _fileStorageService = fileStorageService;
         }
 
-        [Authorize(Policy = "RequireFarmer")]
+        [Authorize(Policy = "RequireFarmerOrAdmin")]
         [Authorize(Policy = "VerifiedEmail")]
         [HttpPost]
         public async Task<ActionResult<object>> UploadImage(IFormFile file)

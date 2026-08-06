@@ -157,12 +157,27 @@ export function FarmersTable({ initialStatus }: { initialStatus?: string }) {
               return (
                 <TableRow key={f.id}>
                   <TableCell>
-                    <Link href={`/admin/farmers/${f.id}`} className="font-medium hover:underline">
-                      {f.name}
-                    </Link>
-                    <span className="tabular block text-xs text-muted-foreground">
-                      #{f.id} · {f.phone ?? f.email}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      {f.profilePhotoUrl ? (
+                        <img
+                          src={f.profilePhotoUrl}
+                          alt=""
+                          className="size-8 shrink-0 rounded-full border border-border object-cover"
+                        />
+                      ) : (
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-border bg-secondary/50 text-[10px] text-muted-foreground">
+                          {f.name.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <Link href={`/admin/farmers/${f.id}`} className="font-medium hover:underline">
+                          {f.name}
+                        </Link>
+                        <span className="tabular block text-xs text-muted-foreground">
+                          #{f.id} · {f.phone ?? f.email}
+                        </span>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {f.district ?? '—'}

@@ -27,6 +27,31 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+function DocPreview({ label, url }: { label: string; url?: string }) {
+  if (!url) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-secondary/50 px-2 py-6 text-center">
+        <FileImage className="size-5 text-muted-foreground" />
+        <span className="text-xs leading-relaxed text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground/70">Not uploaded</span>
+      </div>
+    )
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="group flex flex-col gap-1.5 overflow-hidden rounded-md border border-border transition-colors hover:border-farmer/50"
+    >
+      <img src={url} alt={label} className="h-28 w-full object-cover" />
+      <span className="px-2 pb-2 text-xs text-muted-foreground group-hover:text-foreground">
+        {label}
+      </span>
+    </a>
+  )
+}
+
 export default function FarmerDetailPage({
   params,
 }: {
@@ -39,12 +64,8 @@ export default function FarmerDetailPage({
   const [updating, setUpdating] = React.useState(false)
 
   React.useEffect(() => {
-    adminApi.getFarmers()
-      .then((list) => {
-        const found = list.find((f) => String(f.id) === String(id))
-        if (found) setFarmer(found)
-        else setNotFound(true)
-      })
+    adminApi.getFarmerById(Number(id))
+      .then((found) => setFarmer(found))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
@@ -96,25 +117,38 @@ export default function FarmerDetailPage({
         </Button>
 
         <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="font-display text-2xl">{farmer.name}</h1>
-              <StatusBadge status={farmer.status} />
-              {farmer.verified ? (
-                <span className="flex items-center gap-1 text-xs text-farmer">
-                  <BadgeCheck className="size-3.5" />
-                  NIN verified
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <ShieldQuestion className="size-3.5" />
-                  Awaiting NIN verification
-                </span>
-              )}
+          <div className="flex items-center gap-4">
+            {farmer.profilePhotoUrl ? (
+              <img
+                src={farmer.profilePhotoUrl}
+                alt={`${farmer.name} profile photo`}
+                className="size-16 shrink-0 rounded-full border border-border object-cover"
+              />
+            ) : (
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-dashed border-border bg-secondary/50">
+                <FileImage className="size-5 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="font-display text-2xl">{farmer.name}</h1>
+                <StatusBadge status={farmer.status} />
+                {farmer.verified ? (
+                  <span className="flex items-center gap-1 text-xs text-farmer">
+                    <BadgeCheck className="size-3.5" />
+                    NIN verified
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShieldQuestion className="size-3.5" />
+                    Awaiting NIN verification
+                  </span>
+                )}
+              </div>
+              <p className="tabular text-sm text-muted-foreground">
+                #{farmer.id} · {farmer.phone ?? '—'} · {farmer.email} · Submitted {farmer.submitted}
+              </p>
             </div>
-            <p className="tabular text-sm text-muted-foreground">
-              #{farmer.id} · {farmer.phone ?? '—'} · Submitted {farmer.submitted}
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -138,10 +172,12 @@ export default function FarmerDetailPage({
         <Panel title="Identity" bodyClassName="px-4 py-2">
           <dl className="flex flex-col">
             <Detail label="Full name" value={farmer.name} />
+            <Detail label="Email" value={farmer.email} />
             <Detail
               label="National Identification Number"
               value={<span className="tabular">{farmer.nin ?? '—'}</span>}
             />
+            <Detail label="Document type" value={farmer.idDocumentType ?? '—'} />
             <Detail label="Phone" value={<span className="tabular">{farmer.phone ?? '—'}</span>} />
             <Detail
               label="Verification status"
@@ -154,16 +190,18 @@ export default function FarmerDetailPage({
           <dl className="flex flex-col">
             <Detail label="District" value={farmer.district ?? '—'} />
             <Detail label="Chiefdom" value={farmer.chiefdom ?? '—'} />
-            <Detail label="Community" value={'—'} />
+            <Detail label="Community" value={farmer.community ?? '—'} />
             <Detail label="Nearest market" value="District produce market" />
           </dl>
         </Panel>
 
         <Panel title="Farm details" bodyClassName="px-4 py-2">
           <dl className="flex flex-col">
+            <Detail label="Farm / business name" value={farmer.farmName ?? '—'} />
+            <Detail label="Farm address" value={farmer.farmAddress ?? '—'} />
             <Detail label="Primary crops" value={farmer.crops?.join(', ') || '—'} />
             <Detail label="Farm size" value={farmer.farmSize ?? '—'} />
-            <Detail label="Experience" value={farmer.farmSize ?? '—'} />
+            <Detail label="Experience" value={farmer.farmingExperience ?? '—'} />
             <Detail
               label="Active listings"
               value={<span className="tabular">{farmer.listings}</span>}
@@ -171,6 +209,12 @@ export default function FarmerDetailPage({
           </dl>
         </Panel>
       </div>
+
+      {farmer.farmDescription && (
+        <Panel title="About the farm" bodyClassName="p-4">
+          <p className="text-sm leading-relaxed text-muted-foreground">{farmer.farmDescription}</p>
+        </Panel>
+      )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Panel title="Trust score" bodyClassName="p-4" className="xl:col-span-1">
@@ -208,28 +252,22 @@ export default function FarmerDetailPage({
         </Panel>
 
         <Panel
-          title="Uploaded documents"
-          description="Placeholder previews — file storage integration pending"
+          title="Uploaded documents & photos"
+          description="Full registration evidence submitted by the farmer"
           bodyClassName="p-4"
           className="xl:col-span-2"
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              'National ID (front)',
-              'National ID (back)',
-              'Farm photograph 1',
-              'Farm photograph 2',
-            ].map((label) => (
-              <div
-                key={label}
-                className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-secondary/50 px-2 py-6 text-center"
-              >
-                <FileImage className="size-5 text-muted-foreground" />
-                <span className="text-xs leading-relaxed text-muted-foreground">
-                  {label}
-                </span>
-              </div>
-            ))}
+            <DocPreview label="Profile photo" url={farmer.profilePhotoUrl} />
+            <DocPreview label="Farm photo" url={farmer.farmPhotoUrl} />
+            <DocPreview
+              label={`${farmer.idDocumentType ?? 'ID document'} (front)`}
+              url={farmer.idDocumentFrontUrl}
+            />
+            <DocPreview
+              label={`${farmer.idDocumentType ?? 'ID document'} (back)`}
+              url={farmer.idDocumentBackUrl}
+            />
           </div>
         </Panel>
       </div>

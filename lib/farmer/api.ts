@@ -122,6 +122,16 @@ export interface FarmerMetrics {
 // ─── API Client ──────────────────────────────────────────────────────────────
 
 export const farmerApi = {
+  // Uploads
+  // Matches UploadController.UploadImage: expects a multipart "file" field,
+  // returns { imageUrl }. apiClient.post already skips JSON.stringify and lets
+  // the browser set the multipart boundary when the body is a FormData instance.
+  uploadImage: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post<{ imageUrl: string }>('/api/upload', formData)
+  },
+  
   // Produce / Listings
   getFarmerProduce: (farmerId: number) =>
     apiClient.get<FarmerProduce[]>(`/api/produce/farmer/${farmerId}`),

@@ -98,12 +98,16 @@ export function SignUpForm() {
   const [email, setEmail] = React.useState('')
   const [phone, setPhone] = React.useState('')
   const [password, setPassword] = React.useState('')
+  const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null)
+  const [profilePhotoPreview, setProfilePhotoPreview] = React.useState<string | null>(null)
 
   // step 2
   const [farmName, setFarmName] = React.useState('')
   const [district, setDistrict] = React.useState('')
   const [size, setSize] = React.useState('')
   const [crops, setCrops] = React.useState<string[]>([])
+  const [farmPhotoFile, setFarmPhotoFile] = React.useState<File | null>(null)
+  const [farmPhotoPreview, setFarmPhotoPreview] = React.useState<string | null>(null)
 
   // step 3
   const [idType, setIdType] = React.useState('National ID')
@@ -164,11 +168,19 @@ export function SignUpForm() {
         setErrorMsg('Please fill in all required fields.')
         return
       }
+      if (!profilePhotoFile) {
+        setErrorMsg('Please upload a profile photo.')
+        return
+      }
       setStep(2)
       return
     }
 
     if (step === 2) {
+      if (!farmPhotoFile) {
+        setErrorMsg('Please upload a photo of your farm.')
+        return
+      }
       setStep(3)
       return
     }
@@ -189,6 +201,8 @@ export function SignUpForm() {
       formData.append('idDocumentType', idType)
       if (idFrontFile) formData.append('idDocumentFront', idFrontFile)
       if (idBackFile) formData.append('idDocumentBack', idBackFile)
+      if (profilePhotoFile) formData.append('profilePhoto', profilePhotoFile)
+      if (farmPhotoFile) formData.append('farmPhoto', farmPhotoFile)
 
       await apiClient.post('/api/auth/register', formData)
 
@@ -367,6 +381,49 @@ export function SignUpForm() {
                       />
                       <PasswordStrength password={password} />
                     </Field>
+
+                    <Field>
+                      <FieldLabel>Profile photo</FieldLabel>
+                      <FieldDescription className="mb-2">
+                        A clear photo of your face. Shown on your public seller profile.
+                      </FieldDescription>
+                      {profilePhotoPreview ? (
+                        <div className="relative w-fit">
+                          <img
+                            src={profilePhotoPreview}
+                            alt="Profile photo preview"
+                            className="size-24 rounded-full border border-border object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => clearFile(setProfilePhotoFile, setProfilePhotoPreview)}
+                            className="absolute -top-1 -right-1 flex size-6 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm hover:bg-background transition-colors"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="profilePhoto"
+                          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/30 px-4 py-6 text-center transition-colors hover:border-farmer/50 hover:bg-farmer/5"
+                        >
+                          <Upload className="size-6 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs font-medium text-foreground">Upload profile photo</p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">JPG, PNG, or WebP · Max 5 MB</p>
+                          </div>
+                          <input
+                            id="profilePhoto"
+                            type="file"
+                            className="sr-only"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={(e) =>
+                              handleFileSelect(e.target.files?.[0] ?? null, setProfilePhotoFile, setProfilePhotoPreview)
+                            }
+                          />
+                        </label>
+                      )}
+                    </Field>
                   </FieldGroup>
                 )}
 
@@ -446,6 +503,49 @@ export function SignUpForm() {
                         })}
                       </div>
                     </Field>
+
+                    <Field>
+                      <FieldLabel>Farm photo</FieldLabel>
+                      <FieldDescription className="mb-2">
+                        A photo of your farm or produce. Helps buyers trust your listing.
+                      </FieldDescription>
+                      {farmPhotoPreview ? (
+                        <div className="relative rounded-lg border border-border overflow-hidden">
+                          <img
+                            src={farmPhotoPreview}
+                            alt="Farm photo preview"
+                            className="w-full h-36 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => clearFile(setFarmPhotoFile, setFarmPhotoPreview)}
+                            className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background transition-colors"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="farmPhoto"
+                          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/30 px-4 py-6 text-center transition-colors hover:border-farmer/50 hover:bg-farmer/5"
+                        >
+                          <Upload className="size-6 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs font-medium text-foreground">Upload a photo of your farm</p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">JPG, PNG, or WebP · Max 5 MB</p>
+                          </div>
+                          <input
+                            id="farmPhoto"
+                            type="file"
+                            className="sr-only"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            onChange={(e) =>
+                              handleFileSelect(e.target.files?.[0] ?? null, setFarmPhotoFile, setFarmPhotoPreview)
+                            }
+                          />
+                        </label>
+                      )}
+                    </Field>
                   </FieldGroup>
                 )}
 
@@ -479,7 +579,6 @@ export function SignUpForm() {
                         <SelectContent>
                           <SelectItem value="National ID">Sierra Leone National ID</SelectItem>
                           <SelectItem value="Voter Card">Voter Identity Card</SelectItem>
-                          <SelectItem value="Passport">Passport</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>

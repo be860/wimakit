@@ -52,10 +52,16 @@ namespace WiMakit.API.DTOs
         public string? IdDocumentType { get; set; }
         public string? IdDocumentFrontUrl { get; set; }
         public string? IdDocumentBackUrl { get; set; }
+        public string? ProfilePhotoUrl { get; set; }
+        public string? FarmPhotoUrl { get; set; }
         public string? Phone { get; set; }
         public string? District { get; set; }
         public string? Chiefdom { get; set; }
         public string? Community { get; set; }
+        public string? FarmName { get; set; }
+        public string? FarmAddress { get; set; }
+        public string? FarmDescription { get; set; }
+        public string? FarmingExperience { get; set; }
         public List<string> Crops { get; set; } = new();
         public string? FarmSize { get; set; }
         public string Status { get; set; } = string.Empty;

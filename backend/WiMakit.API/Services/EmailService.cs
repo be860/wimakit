@@ -7,6 +7,13 @@ namespace WiMakit.API.Services
     public interface IEmailService
     {
         Task<bool> SendVerificationEmailAsync(string email, string token);
+
+        /// <summary>
+        /// Sends the farmer their login credentials (email + one-time temporary password)
+        /// after a superadmin approves their account. The farmer must change this
+        /// password on first login (MustChangePassword is set true by the caller).
+        /// </summary>
+        Task<bool> SendFarmerApprovalEmailAsync(string email, string fullName, string temporaryPassword);
     }
 
     public class EmailService : IEmailService
@@ -94,6 +101,147 @@ response.EnsureSuccessStatusCode();
 
                 return false;
             }
+        }
+
+        public async Task<bool> SendFarmerApprovalEmailAsync(string email, string fullName, string temporaryPassword)
+        {
+            try
+            {
+                var apiKey = _configuration["Resend:ApiKey"]?.Trim();
+                var senderEmail = _configuration["Resend:SenderEmail"]?.Trim();
+                var senderName = _configuration["Resend:SenderName"]?.Trim() ?? "WiMakit";
+
+                _logger.LogInformation("Attempting to send farmer approval email to {Email}", email);
+
+                if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
+                {
+                    _logger.LogError("Resend API key or sender email is not configured.");
+
+                    _logger.LogWarning("************************************************************");
+                    _logger.LogWarning("EMAIL FALLBACK - Approval credentials for {Email}: temporary password = {Password}", email, temporaryPassword);
+                    _logger.LogWarning("************************************************************");
+
+                    return false;
+                }
+
+                var htmlBody = GetFarmerApprovalEmailTemplate(fullName, email, temporaryPassword);
+
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", apiKey);
+
+                var payload = new
+                {
+                    from = $"{senderName} <{senderEmail}>",
+                    to = new[] { email },
+                    subject = "Your WiMakit Farmer Account Has Been Approved",
+                    html = htmlBody
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(payload),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await _httpClient.PostAsync(
+                    "https://api.resend.com/emails",
+                    content);
+
+                response.EnsureSuccessStatusCode();
+
+                _logger.LogInformation("Farmer approval email successfully sent to: {Email}", email);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send farmer approval email to: {Email}", email);
+
+                _logger.LogWarning("************************************************************");
+                _logger.LogWarning("EMAIL FALLBACK - Approval credentials for {Email}: temporary password = {Password}", email, temporaryPassword);
+                _logger.LogWarning("************************************************************");
+
+                return false;
+            }
+        }
+
+        private string GetFarmerApprovalEmailTemplate(string fullName, string email, string temporaryPassword)
+        {
+            return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Account Approved</title>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table role='presentation' style='width: 100%; border-collapse: collapse;'>
+        <tr>
+            <td align='center' style='padding: 40px 0;'>
+                <table role='presentation' style='width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                    <!-- Header -->
+                    <tr>
+                        <td style='padding: 40px 40px 20px 40px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;'>
+                            <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;'>🌱 WiMakit</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style='padding: 40px;'>
+                            <h2 style='margin: 0 0 20px 0; color: #1f2937; font-size: 24px;'>You're Approved, {fullName}! 🎉</h2>
+                            <p style='margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;'>
+                                Great news — WiMakit staff have reviewed and approved your farmer account. You can now sign in and start listing your produce for buyers across Sierra Leone.
+                            </p>
+                            <p style='margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;'>
+                                Here are your login credentials:
+                            </p>
+
+                            <!-- Credentials Box -->
+                            <table role='presentation' style='width: 100%; border-collapse: collapse; margin: 0 0 20px 0;'>
+                                <tr>
+                                    <td style='padding: 20px; background-color: #f9fafb; border: 2px dashed #22c55e; border-radius: 8px;'>
+                                        <p style='margin: 0 0 8px 0; color: #4b5563; font-size: 14px;'>
+                                            <strong>Email:</strong> {email}
+                                        </p>
+                                        <p style='margin: 0; color: #4b5563; font-size: 14px;'>
+                                            <strong>Temporary password:</strong>
+                                        </p>
+                                        <p style='margin: 6px 0 0 0; font-size: 28px; font-weight: bold; color: #22c55e; letter-spacing: 4px; font-family: monospace;'>
+                                            {temporaryPassword}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <div style='margin: 0 0 20px 0; padding: 16px 20px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;'>
+                                <p style='margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;'>
+                                    <strong>⚠️ Important:</strong> This is a one-time password. You will be required to set your own new password the first time you log in.
+                                </p>
+                            </div>
+
+                            <p style='margin: 0 0 20px 0; color: #6b7280; font-size: 14px; line-height: 1.6;'>
+                                For your security, please do not share this password with anyone. If you did not expect this email, please contact WiMakit support immediately.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style='padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;'>
+                            <p style='margin: 0 0 10px 0; color: #6b7280; font-size: 14px;'>
+                                Need help? Contact us at <a href='mailto:support@wimakit.com' style='color: #22c55e; text-decoration: none;'>support@wimakit.com</a>
+                            </p>
+                            <p style='margin: 0; color: #9ca3af; font-size: 12px;'>
+                                © 2024 WiMakit. Connecting Sierra Leone's Agricultural Community.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
         }
 
         private string GetVerificationEmailTemplate(string token)

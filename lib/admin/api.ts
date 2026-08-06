@@ -22,10 +22,19 @@ export interface FarmerAdmin {
   name: string
   email: string
   nin?: string
+  idDocumentType?: string
+  idDocumentFrontUrl?: string
+  idDocumentBackUrl?: string
+  profilePhotoUrl?: string
+  farmPhotoUrl?: string
   phone?: string
   district?: string
   chiefdom?: string
   community?: string
+  farmName?: string
+  farmAddress?: string
+  farmDescription?: string
+  farmingExperience?: string
   crops: string[]
   farmSize?: string
   status: string
@@ -113,6 +122,8 @@ export const adminApi = {
 
   updateFarmerStatus: (id: number, status: string, note?: string) =>
     apiClient.put(`/api/admin/farmers/${id}/status`, { status, note }),
+
+  getFarmerById: (id: number) => apiClient.get<FarmerAdmin>(`/api/admin/farmers/${id}`),
 
   getBuyers: (params?: { status?: string; search?: string }) => {
     const qs = new URLSearchParams()

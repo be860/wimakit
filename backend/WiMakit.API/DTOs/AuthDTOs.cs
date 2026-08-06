@@ -58,6 +58,12 @@ namespace WiMakit.API.DTOs
         public IFormFile? IdDocumentFront { get; set; }
 
         public IFormFile? IdDocumentBack { get; set; }
+
+        /// <summary>Farmer's profile photo (required for farmer role) — used as their public profile picture.</summary>
+        public IFormFile? ProfilePhoto { get; set; }
+
+        /// <summary>Photo of the farmer's farm (required for farmer role).</summary>
+        public IFormFile? FarmPhoto { get; set; }
     }
 
     public class LoginRequest
@@ -110,6 +116,8 @@ namespace WiMakit.API.DTOs
         public string? IdDocumentType { get; set; }
         public string? IdDocumentFrontUrl { get; set; }
         public string? IdDocumentBackUrl { get; set; }
+        public string? ProfilePhotoUrl { get; set; }
+        public string? FarmPhotoUrl { get; set; }
     }
 
     public class ChangePasswordRequest

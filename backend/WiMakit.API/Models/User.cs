@@ -58,6 +58,14 @@ namespace WiMakit.API.Models
         [MaxLength(500)]
         public string? IdDocumentBackUrl { get; set; }
 
+        /// <summary>Supabase Storage URL of the farmer's profile photo.</summary>
+        [MaxLength(500)]
+        public string? ProfilePhotoUrl { get; set; }
+
+        /// <summary>Supabase Storage URL of a photo of the farmer's farm.</summary>
+        [MaxLength(500)]
+        public string? FarmPhotoUrl { get; set; }
+
         [MaxLength(50)]
         public string? District { get; set; }
 
