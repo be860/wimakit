@@ -8,7 +8,7 @@ namespace WiMakit.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "admin,superadmin")]
+    [Authorize(Policy = "RequireAdmin")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -116,7 +116,7 @@ namespace WiMakit.API.Controllers
 
         [HttpGet("audit-log")]
         [HttpGet("audit-logs")]
-        [Authorize(Roles = "superadmin")] // Audit log is SuperAdmin-only
+        [Authorize(Policy = "RequireSuperAdmin")] // Audit log is SuperAdmin-only
         public async Task<IActionResult> GetAuditLogs()
         {
             var logs = await _adminService.GetAuditLogsAsync();
@@ -134,7 +134,7 @@ namespace WiMakit.API.Controllers
         }
 
         [HttpPost("/api/superadmin/create-admin")]
-        [Authorize(Roles = "SuperAdmin")]
+        [Authorize(Policy = "RequireSuperAdmin")]
         public async Task<IActionResult> CreateAdmin([FromBody] CreateAdminRequest request)
         {
             var adminId = GetCurrentUserId();

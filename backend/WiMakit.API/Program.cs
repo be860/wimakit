@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using WiMakit.API.Data;
+using WiMakit.API.Extensions;
 using WiMakit.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -180,6 +181,20 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("VerifiedEmail", policy =>
         policy.RequireClaim("email_verified", "true"));
+
+    // Case-insensitive role policies. Built-in [Authorize(Roles="...")] compares the
+    // role claim VALUE case-sensitively, which caused "SuperAdmin" (as stored/seeded)
+    // to fail against a required "superadmin" role name. These policies use
+    // ClaimsPrincipalExtensions.HasAnyRole so casing never matters, regardless of how
+    // a role happens to be stored in the database or cased at token-issuance time.
+    options.AddPolicy("RequireFarmer", policy =>
+        policy.RequireAssertion(ctx => ctx.User.HasAnyRole("farmer")));
+
+    options.AddPolicy("RequireAdmin", policy =>
+        policy.RequireAssertion(ctx => ctx.User.HasAnyRole("admin", "superadmin")));
+
+    options.AddPolicy("RequireSuperAdmin", policy =>
+        policy.RequireAssertion(ctx => ctx.User.HasAnyRole("superadmin")));
 });
 
 // ── Swagger ───────────────────────────────────────────────────────────────────

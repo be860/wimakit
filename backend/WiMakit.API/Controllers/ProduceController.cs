@@ -52,7 +52,8 @@ namespace WiMakit.API.Controllers
         }
         
         [HttpPost]
-        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
+        [Authorize(Policy = "RequireFarmer")]
+        [Authorize(Policy = "VerifiedEmail")]
         public async Task<ActionResult<ProduceDTO>> CreateProduce(CreateProduceRequest request)
         {
             var userId = User.GetUserId();
@@ -62,7 +63,8 @@ namespace WiMakit.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
+        [Authorize(Policy = "RequireFarmer")]
+        [Authorize(Policy = "VerifiedEmail")]
         public async Task<ActionResult<ProduceDTO>> UpdateProduce(int id, UpdateProduceRequest request)
         {
             var userId = User.GetUserId();
@@ -77,7 +79,8 @@ namespace WiMakit.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "farmer", Policy = "VerifiedEmail")]
+        [Authorize(Policy = "RequireFarmer")]
+        [Authorize(Policy = "VerifiedEmail")]
         public async Task<IActionResult> DeleteProduce(int id)
         {
             var userId = User.GetUserId();
