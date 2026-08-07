@@ -55,9 +55,9 @@ function DocPreview({ label, url }: { label: string; url?: string }) {
 export default function FarmerDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const { id } = params
+  const { id } = React.use(params)
   const [farmer, setFarmer] = React.useState<FarmerAdmin | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)

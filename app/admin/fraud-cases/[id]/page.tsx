@@ -13,9 +13,9 @@ import { Panel, StatusBadge } from '@/components/admin/primitives'
 export default function FraudCaseDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const { id } = params
+  const { id } = React.use(params)
   const [fraudCase, setFraudCase] = React.useState<FraudCase | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)
