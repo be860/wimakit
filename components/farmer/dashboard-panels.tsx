@@ -434,7 +434,7 @@ export function QuickActionsPanel() {
             nativeButton={false}
             render={<Link href={a.href} />}
             className={cn(
-              'h-auto justify-start py-2.5',
+              'h-auto w-full min-w-0 justify-start whitespace-normal py-2.5 text-left leading-snug',
               i === 0 && 'bg-farmer text-background hover:bg-farmer/90',
             )}
           >

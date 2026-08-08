@@ -31,7 +31,7 @@ namespace WiMakit.API.Services
             var openFraudCases = await _context.FraudCases.CountAsync(f => f.Status == "Open" || f.Status == "Under Review");
 
             var totalRevenue = await _context.Orders.Where(o => o.Status != "Cancelled").SumAsync(o => (decimal?)o.Amount) ?? 0m;
-            var activeListings = await _context.Produces.CountAsync(p => p.Status == "Live" || p.Status == "Approved" || p.Status == "available");
+            var activeListings = await _context.Produces.CountAsync(p => p.Status == "Live");
             var ordersThisMonth = await _context.Orders.CountAsync(o => o.CreatedAt >= startOfMonth);
 
             // Monthly Revenue for last 6 months
@@ -394,6 +394,130 @@ namespace WiMakit.API.Services
                 TargetType = "Product",
                 TargetId = id.ToString(),
                 Details = note ?? $"Updated product status to {status}",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<ProductAdminDTO> CreateProductAsync(CreateProductAdminRequest request, int adminId, string adminName)
+        {
+            var product = new Produce
+            {
+                FarmerId = request.FarmerId,
+                Name = request.Name,
+                Category = request.Category,
+                Description = request.Description,
+                Price = request.Price,
+                Unit = request.Unit,
+                Quantity = request.Quantity,
+                Location = request.Location,
+                District = request.District,
+                ImageUrl = request.ImageUrl,
+                Status = string.IsNullOrWhiteSpace(request.Status) ? "Live" : request.Status,
+            };
+
+            _context.Produces.Add(product);
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminName = adminName,
+                Action = "CREATE_PRODUCT",
+                TargetType = "Product",
+                TargetId = product.Id.ToString(),
+                Details = $"Created product '{product.Name}' for farmer #{product.FarmerId}",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(product).Reference(p => p.Farmer).LoadAsync();
+
+            return new ProductAdminDTO
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Farmer = product.Farmer != null ? product.Farmer.FullName : "Unknown",
+                FarmerId = product.FarmerId,
+                Category = product.Category,
+                Unit = product.Unit,
+                Price = product.Price,
+                Stock = product.Stock,
+                District = product.District ?? product.Location,
+                Status = product.Status,
+                Submitted = product.CreatedAt
+            };
+        }
+
+        public async Task<ProductAdminDTO?> UpdateProductAsync(int id, UpdateProductAdminRequest request, int adminId, string adminName)
+        {
+            var product = await _context.Produces
+                .Include(p => p.Farmer)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null) return null;
+
+            if (!string.IsNullOrEmpty(request.Name)) product.Name = request.Name;
+            if (!string.IsNullOrEmpty(request.Category)) product.Category = request.Category;
+            if (!string.IsNullOrEmpty(request.Description)) product.Description = request.Description;
+            if (request.Price.HasValue) product.Price = request.Price.Value;
+            if (!string.IsNullOrEmpty(request.Unit)) product.Unit = request.Unit;
+            if (request.Quantity.HasValue) product.Quantity = request.Quantity.Value;
+            if (request.Location != null) product.Location = request.Location;
+            if (request.District != null) product.District = request.District;
+            if (request.ImageUrl != null) product.ImageUrl = request.ImageUrl;
+            if (!string.IsNullOrEmpty(request.Status)) product.Status = request.Status;
+
+            product.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminName = adminName,
+                Action = "UPDATE_PRODUCT",
+                TargetType = "Product",
+                TargetId = id.ToString(),
+                Details = $"Updated product '{product.Name}'",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return new ProductAdminDTO
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Farmer = product.Farmer != null ? product.Farmer.FullName : "Unknown",
+                FarmerId = product.FarmerId,
+                Category = product.Category,
+                Unit = product.Unit,
+                Price = product.Price,
+                Stock = product.Stock,
+                District = product.District ?? product.Location,
+                Status = product.Status,
+                Submitted = product.CreatedAt
+            };
+        }
+
+        public async Task<bool> DeleteProductAsync(int id, int adminId, string adminName)
+        {
+            var product = await _context.Produces.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null) return false;
+
+            var name = product.Name;
+            _context.Produces.Remove(product);
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminName = adminName,
+                Action = "DELETE_PRODUCT",
+                TargetType = "Product",
+                TargetId = id.ToString(),
+                Details = $"Deleted product '{name}'",
                 CreatedAt = DateTime.UtcNow
             });
 

@@ -16,9 +16,10 @@ namespace WiMakit.API.Services
 
         public async Task<IEnumerable<ProduceDTO>> GetAllProduceAsync(string? search, string? category)
         {
+            // Buyers/public listing must only ever see listings the admin has approved ("Live").
             var query = _context.Produces
                 .Include(p => p.Farmer)
-                .Where(p => p.Status == "available")
+                .Where(p => p.Status == "Live")
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(search))
@@ -69,7 +70,9 @@ namespace WiMakit.API.Services
                 Quantity = request.Quantity,
                 Location = request.Location,
                 ImageUrl = request.ImageUrl,
-                Status = "available"
+                // New listings always start out Pending — only an admin approval (AdminController)
+                // can move a listing to "Live" where buyers can see it.
+                Status = "Pending"
             };
 
             _context.Produces.Add(produce);
@@ -92,7 +95,10 @@ namespace WiMakit.API.Services
                 return null;
             }
 
-            // Update fields
+            // Update fields. Farmers cannot set Status directly here — that would let a farmer
+            // bypass admin moderation entirely (this was the original bug). Status changes for
+            // farmers only ever go through re-approval below, and admin-driven status changes
+            // go through AdminService.UpdateProductStatusAsync.
             if (!string.IsNullOrEmpty(request.Name)) produce.Name = request.Name;
             if (!string.IsNullOrEmpty(request.Category)) produce.Category = request.Category;
             if (!string.IsNullOrEmpty(request.Description)) produce.Description = request.Description;
@@ -101,7 +107,14 @@ namespace WiMakit.API.Services
             if (request.Quantity.HasValue) produce.Quantity = request.Quantity.Value;
             if (request.Location != null) produce.Location = request.Location;
             if (request.ImageUrl != null) produce.ImageUrl = request.ImageUrl;
-            if (!string.IsNullOrEmpty(request.Status)) produce.Status = request.Status;
+
+            // A previously-approved listing that the farmer edits goes back to Pending so an
+            // admin can re-review the new content before it's shown to buyers again. Listings
+            // that are already Pending, Hidden, or Rejected simply stay in moderation.
+            if (produce.Status == "Live")
+            {
+                produce.Status = "Pending";
+            }
 
             produce.UpdatedAt = DateTime.UtcNow;
 

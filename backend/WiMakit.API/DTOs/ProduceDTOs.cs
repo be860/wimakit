@@ -61,8 +61,10 @@ namespace WiMakit.API.DTOs
         [Url(ErrorMessage = "Image URL must be a valid URL.")]
         public string? ImageUrl { get; set; }
 
-        [RegularExpression("^(available|sold|reserved)$", ErrorMessage = "Status must be 'available', 'sold', or 'reserved'.")]
-        public string? Status { get; set; }
+        // Note: farmers cannot set Status directly through this endpoint — that would let a
+        // listing skip admin moderation. Status is only ever changed by ProduceService (moving
+        // an edited "Live" listing back to "Pending" for re-review) or by an admin via
+        // AdminController's product-status/product endpoints.
     }
 
     public class ProduceDTO

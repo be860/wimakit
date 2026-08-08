@@ -12,6 +12,9 @@ namespace WiMakit.API.Services
         Task<bool> UpdateBuyerStatusAsync(int id, string status, int adminId, string adminName);
         Task<IEnumerable<ProductAdminDTO>> GetProductsAsync(string? status, string? search);
         Task<bool> UpdateProductStatusAsync(int id, string status, string? note, int adminId, string adminName);
+        Task<ProductAdminDTO> CreateProductAsync(CreateProductAdminRequest request, int adminId, string adminName);
+        Task<ProductAdminDTO?> UpdateProductAsync(int id, UpdateProductAdminRequest request, int adminId, string adminName);
+        Task<bool> DeleteProductAsync(int id, int adminId, string adminName);
         Task<IEnumerable<FraudCaseDTO>> GetFraudCasesAsync(string? status);
         Task<FraudCaseDTO?> GetFraudCaseByIdAsync(int id);
         Task<bool> UpdateFraudCaseStatusAsync(int id, string status, string? assignedTo, int adminId, string adminName);

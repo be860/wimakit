@@ -115,8 +115,81 @@ namespace WiMakit.API.DTOs
 
     public class UpdateProductStatusRequest
     {
-        public string Status { get; set; } = string.Empty; // "Approved", "Live", "Hidden", "Rejected"
+        public string Status { get; set; } = string.Empty; // "Pending", "Live", "Hidden", "Rejected"
         public string? Note { get; set; }
+    }
+
+    public class CreateProductAdminRequest
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public int FarmerId { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string Category { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Description { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Range(0.01, 100000000.00)]
+        public decimal Price { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(20)]
+        public string Unit { get; set; } = "kg";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Range(1, 1000000)]
+        public int Quantity { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Location { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? District { get; set; }
+
+        public string? ImageUrl { get; set; }
+
+        /// <summary>
+        /// Admin-created listings are already vetted by the admin, so they default to "Live"
+        /// unless the admin explicitly wants to stage it as "Pending" first.
+        /// </summary>
+        public string Status { get; set; } = "Live";
+    }
+
+    public class UpdateProductAdminRequest
+    {
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Name { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? Category { get; set; }
+
+        public string? Description { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Range(0.01, 100000000.00)]
+        public decimal? Price { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(20)]
+        public string? Unit { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Range(0, 1000000)]
+        public int? Quantity { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Location { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? District { get; set; }
+
+        public string? ImageUrl { get; set; }
+
+        public string? Status { get; set; } // "Pending", "Live", "Hidden", "Rejected"
     }
 
     public class FraudCaseDTO

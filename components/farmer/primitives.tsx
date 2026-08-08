@@ -54,6 +54,7 @@ export function StatCard({
 
 const statusStyles: Record<string, string> = {
   Approved: 'border-farmer/30 bg-farmer/10 text-farmer',
+  Live: 'border-farmer/30 bg-farmer/10 text-farmer',
   Pending: 'border-gold/40 bg-gold/12 text-[#8a5c10]',
   Processing: 'border-buyer/30 bg-buyer/10 text-buyer',
   Shipped: 'border-buyer/30 bg-buyer/10 text-buyer',

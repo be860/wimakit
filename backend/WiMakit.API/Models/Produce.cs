@@ -47,7 +47,7 @@ namespace WiMakit.API.Models
 
         [Required]
         [MaxLength(20)]
-        public string Status { get; set; } = "Approved"; // "Approved", "Pending", "Live", "Hidden", "Rejected", "available", "sold"
+        public string Status { get; set; } = "Pending"; // "Pending" (awaiting admin approval), "Live" (approved & visible to buyers), "Hidden", "Rejected"
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

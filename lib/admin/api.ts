@@ -145,6 +145,38 @@ export const adminApi = {
   updateProductStatus: (id: number, status: string, note?: string) =>
     apiClient.put(`/api/admin/products/${id}/status`, { status, note }),
 
+  createProduct: (data: {
+    farmerId: number
+    name: string
+    category: string
+    description: string
+    price: number
+    unit: string
+    quantity: number
+    location?: string
+    district?: string
+    imageUrl?: string
+    status?: string
+  }) => apiClient.post<ProductAdmin>('/api/admin/products', data),
+
+  updateProduct: (
+    id: number,
+    data: {
+      name?: string
+      category?: string
+      description?: string
+      price?: number
+      unit?: string
+      quantity?: number
+      location?: string
+      district?: string
+      imageUrl?: string
+      status?: string
+    },
+  ) => apiClient.put<ProductAdmin>(`/api/admin/products/${id}`, data),
+
+  deleteProduct: (id: number) => apiClient.delete(`/api/admin/products/${id}`),
+
   getFraudCases: (params?: { status?: string }) => {
     const qs = new URLSearchParams()
     if (params?.status) qs.set('status', params.status)

@@ -88,6 +88,38 @@ namespace WiMakit.API.Controllers
             return Ok(new { message = $"Product status updated to {request.Status} successfully." });
         }
 
+        [HttpPost("products")]
+        public async Task<IActionResult> CreateProduct([FromBody] CreateProductAdminRequest request)
+        {
+            var adminId = GetCurrentUserId();
+            var adminName = GetCurrentUserName();
+
+            var product = await _adminService.CreateProductAsync(request, adminId, adminName);
+            return CreatedAtAction(nameof(GetProducts), new { }, product);
+        }
+
+        [HttpPut("products/{id:int}")]
+        public async Task<IActionResult> UpdateProduct(int id, [FromBody] UpdateProductAdminRequest request)
+        {
+            var adminId = GetCurrentUserId();
+            var adminName = GetCurrentUserName();
+
+            var product = await _adminService.UpdateProductAsync(id, request, adminId, adminName);
+            if (product == null) return NotFound(new { message = "Product not found." });
+            return Ok(product);
+        }
+
+        [HttpDelete("products/{id:int}")]
+        public async Task<IActionResult> DeleteProduct(int id)
+        {
+            var adminId = GetCurrentUserId();
+            var adminName = GetCurrentUserName();
+
+            var success = await _adminService.DeleteProductAsync(id, adminId, adminName);
+            if (!success) return NotFound(new { message = "Product not found." });
+            return NoContent();
+        }
+
         [HttpGet("fraud-cases")]
         public async Task<IActionResult> GetFraudCases([FromQuery] string? status)
         {

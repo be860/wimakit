@@ -20,7 +20,10 @@ namespace WiMakit.API.Services
             if (produce == null)
                 return new PaymentResult { Success = false, Message = "Produce not found." };
 
-            if (produce.Status == "sold" || produce.Status == "Hidden" || produce.Status == "Rejected")
+            // Only admin-approved ("Live") listings can be purchased. This also blocks
+            // "sold", "Pending", "Hidden", and "Rejected" produce from being bought directly
+            // by ID even if a buyer bypasses the (already-filtered) listing page.
+            if (produce.Status != "Live")
                 return new PaymentResult { Success = false, Message = "This produce is no longer available for purchase." };
 
             if (request.Quantity > produce.Quantity)
