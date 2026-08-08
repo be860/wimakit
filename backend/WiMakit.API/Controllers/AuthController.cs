@@ -277,6 +277,82 @@ namespace WiMakit.API.Controllers
             return Ok(new { success = true, message = "Password changed successfully." });
         }
 
+        // ── Forgot Password (request reset code) ────────────────────────────────
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("auth-register")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+            // Always return the same generic response, whether or not the account
+            // exists or uses Google sign-in, so this endpoint can't be used to
+            // enumerate registered emails.
+            const string genericMessage = "If an account exists for this email address, a reset code has been sent.";
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+            if (user == null || user.PasswordHash == null)
+            {
+                if (user != null)
+                {
+                    _logger.LogInformation("Password reset requested for Google-only account {Email}", normalizedEmail);
+                }
+                return Ok(new { success = true, message = genericMessage });
+            }
+
+            var otp = GenerateOtp();
+            user.PasswordResetToken = otp;
+            user.PasswordResetExpiry = DateTime.UtcNow.AddMinutes(15);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, otp);
+            if (!emailSent)
+            {
+                _logger.LogWarning("Password reset email could not be sent to {Email}", user.Email);
+            }
+
+            return Ok(new { success = true, message = genericMessage });
+        }
+
+        // ── Reset Password (consume reset code) ─────────────────────────────────
+        [HttpPost("reset-password")]
+        [EnableRateLimiting("auth-login")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+            if (user == null || string.IsNullOrEmpty(user.PasswordResetToken))
+                return BadRequest(new { message = "Invalid or expired reset code. Please request a new one." });
+
+            if (user.PasswordResetToken != request.Otp)
+                return BadRequest(new { message = "Invalid reset code. Please check your email and try again." });
+
+            if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
+                return BadRequest(new { message = "Reset code has expired. Please request a new one." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.PasswordResetToken = null;
+            user.PasswordResetExpiry = null;
+            user.MustChangePassword = false;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Sign the account out everywhere else for security.
+            var activeRefreshTokens = await _context.RefreshTokens
+                .Where(rt => rt.UserId == user.Id && rt.RevokedAt == null)
+                .ToListAsync();
+            foreach (var rt in activeRefreshTokens)
+            {
+                rt.RevokedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Password reset successfully. You can now log in with your new password." });
+        }
+
         // ── Google OAuth ──────────────────────────────────────────────────────
         [HttpPost("google")]
         [EnableRateLimiting("auth-login")]

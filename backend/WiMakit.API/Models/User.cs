@@ -122,6 +122,11 @@ namespace WiMakit.API.Models
 
         public DateTime? EmailVerificationExpiry { get; set; }
 
+        /// <summary>6-digit OTP code issued for a "forgot password" request. Cleared once used or expired.</summary>
+        public string? PasswordResetToken { get; set; }
+
+        public DateTime? PasswordResetExpiry { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }

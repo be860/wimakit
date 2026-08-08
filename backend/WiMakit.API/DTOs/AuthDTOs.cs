@@ -179,4 +179,28 @@ namespace WiMakit.API.DTOs
         [Required]
         public string RefreshToken { get; set; } = string.Empty;
     }
+
+    public class ForgotPasswordRequest
+    {
+        [Required(ErrorMessage = "Email address is required.")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordRequest
+    {
+        [Required(ErrorMessage = "Email address is required.")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Reset code is required.")]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Reset code must be exactly 6 digits.")]
+        [RegularExpression(@"^\d{6}$", ErrorMessage = "Reset code must consist of digits only.")]
+        public string Otp { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required.")]
+        [MinLength(6, ErrorMessage = "New password must be at least 6 characters long.")]
+        [MaxLength(100, ErrorMessage = "New password cannot exceed 100 characters.")]
+        public string NewPassword { get; set; } = string.Empty;
+    }
 }

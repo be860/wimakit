@@ -14,6 +14,12 @@ namespace WiMakit.API.Services
         /// password on first login (MustChangePassword is set true by the caller).
         /// </summary>
         Task<bool> SendFarmerApprovalEmailAsync(string email, string fullName, string temporaryPassword);
+
+        /// <summary>
+        /// Sends a one-time 6-digit code the user can use to set a new password
+        /// after requesting a "forgot password" reset. Expires in 15 minutes.
+        /// </summary>
+        Task<bool> SendPasswordResetEmailAsync(string email, string otp);
     }
 
     public class EmailService : IEmailService
@@ -103,6 +109,66 @@ response.EnsureSuccessStatusCode();
             }
         }
 
+        public async Task<bool> SendPasswordResetEmailAsync(string email, string otp)
+        {
+            try
+            {
+                var apiKey = _configuration["Resend:ApiKey"]?.Trim();
+                var senderEmail = _configuration["Resend:SenderEmail"]?.Trim();
+                var senderName = _configuration["Resend:SenderName"]?.Trim() ?? "WiMakit";
+
+                _logger.LogInformation("Attempting to send password reset email to {Email}", email);
+
+                if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
+                {
+                    _logger.LogError("Resend API key or sender email is not configured.");
+
+                    _logger.LogWarning("************************************************************");
+                    _logger.LogWarning("EMAIL FALLBACK - Password reset code for {Email}: {Otp}", email, otp);
+                    _logger.LogWarning("************************************************************");
+
+                    return false;
+                }
+
+                var htmlBody = GetPasswordResetEmailTemplate(otp);
+
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", apiKey);
+
+                var payload = new
+                {
+                    from = $"{senderName} <{senderEmail}>",
+                    to = new[] { email },
+                    subject = "Reset Your WiMakit Password",
+                    html = htmlBody
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(payload),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await _httpClient.PostAsync(
+                    "https://api.resend.com/emails",
+                    content);
+
+                response.EnsureSuccessStatusCode();
+
+                _logger.LogInformation("Password reset email successfully sent to: {Email}", email);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send password reset email to: {Email}", email);
+
+                _logger.LogWarning("************************************************************");
+                _logger.LogWarning("EMAIL FALLBACK - Password reset code for {Email}: {Otp}", email, otp);
+                _logger.LogWarning("************************************************************");
+
+                return false;
+            }
+        }
+
         public async Task<bool> SendFarmerApprovalEmailAsync(string email, string fullName, string temporaryPassword)
         {
             try
@@ -163,6 +229,34 @@ response.EnsureSuccessStatusCode();
             }
         }
 
+        /// <summary>
+        /// Publicly reachable URL of the WiMakit logo, used in the header of every
+        /// outbound email instead of an emoji so branding renders consistently
+        /// across email clients.
+        /// </summary>
+        private string GetLogoUrl()
+        {
+            var configured = _configuration["App:LogoUrl"]?.Trim();
+            if (!string.IsNullOrWhiteSpace(configured))
+                return configured;
+
+            var frontendUrl = _configuration["App:FrontendUrl"]?.Trim().TrimEnd('/')
+                ?? "https://wimakit.vercel.app";
+
+            return $"{frontendUrl}/wimakit-logo-horizontal.png";
+        }
+
+        private string GetEmailHeader()
+        {
+            var logoUrl = GetLogoUrl();
+            return $@"
+                    <tr>
+                        <td style='padding: 32px 40px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;'>
+                            <img src='{logoUrl}' alt='WiMakit' style='height: 36px; width: auto; max-width: 220px; display: inline-block;' />
+                        </td>
+                    </tr>";
+        }
+
         private string GetFarmerApprovalEmailTemplate(string fullName, string email, string temporaryPassword)
         {
             return $@"
@@ -179,11 +273,7 @@ response.EnsureSuccessStatusCode();
             <td align='center' style='padding: 40px 0;'>
                 <table role='presentation' style='width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                     <!-- Header -->
-                    <tr>
-                        <td style='padding: 40px 40px 20px 40px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;'>
-                            <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;'>🌱 WiMakit</h1>
-                        </td>
-                    </tr>
+                    {GetEmailHeader()}
 
                     <!-- Content -->
                     <tr>
@@ -260,11 +350,7 @@ response.EnsureSuccessStatusCode();
             <td align='center' style='padding: 40px 0;'>
                 <table role='presentation' style='width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
                     <!-- Header -->
-                    <tr>
-                        <td style='padding: 40px 40px 20px 40px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;'>
-                            <h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;'>🌱 WiMakit</h1>
-                        </td>
-                    </tr>
+                    {GetEmailHeader()}
                     
                     <!-- Content -->
                     <tr>
@@ -300,6 +386,74 @@ response.EnsureSuccessStatusCode();
                         </td>
                     </tr>
                     
+                    <!-- Footer -->
+                    <tr>
+                        <td style='padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;'>
+                            <p style='margin: 0 0 10px 0; color: #6b7280; font-size: 14px;'>
+                                Need help? Contact us at <a href='mailto:support@wimakit.com' style='color: #22c55e; text-decoration: none;'>support@wimakit.com</a>
+                            </p>
+                            <p style='margin: 0; color: #9ca3af; font-size: 12px;'>
+                                © 2024 WiMakit. Connecting Sierra Leone's Agricultural Community.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+        }
+
+        private string GetPasswordResetEmailTemplate(string otp)
+        {
+            return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Reset Your Password</title>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table role='presentation' style='width: 100%; border-collapse: collapse;'>
+        <tr>
+            <td align='center' style='padding: 40px 0;'>
+                <table role='presentation' style='width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                    <!-- Header -->
+                    {GetEmailHeader()}
+
+                    <!-- Content -->
+                    <tr>
+                        <td style='padding: 40px;'>
+                            <h2 style='margin: 0 0 20px 0; color: #1f2937; font-size: 24px;'>Reset Your Password</h2>
+                            <p style='margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;'>
+                                We received a request to reset the password for your WiMakit account. Use the code below to set a new password.
+                            </p>
+
+                            <!-- OTP Box -->
+                            <table role='presentation' style='width: 100%; border-collapse: collapse; margin: 0 0 30px 0;'>
+                                <tr>
+                                    <td align='center' style='padding: 20px; background-color: #f9fafb; border: 2px dashed #22c55e; border-radius: 8px;'>
+                                        <div style='font-size: 36px; font-weight: bold; color: #22c55e; letter-spacing: 8px; font-family: monospace;'>
+                                            {otp}
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style='margin: 0 0 20px 0; color: #6b7280; font-size: 14px; line-height: 1.6;'>
+                                Enter this code on the reset password page to choose a new password. This code will expire in 15 minutes.
+                            </p>
+
+                            <div style='margin: 30px 0; padding: 20px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;'>
+                                <p style='margin: 0; color: #92400e; font-size: 14px;'>
+                                    <strong>⚠️ Security Note:</strong> If you didn't request a password reset, you can safely ignore this email — your password will not be changed.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
                     <!-- Footer -->
                     <tr>
                         <td style='padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;'>

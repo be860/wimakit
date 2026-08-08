@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 
 import { passwordStrength } from '@/lib/auth/mock-auth'
+import { authApi } from '@/lib/auth/api'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -33,21 +34,27 @@ export function ForgotPasswordForm() {
   const [pending, setPending] = React.useState(false)
   const [sent, setSent] = React.useState(false)
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     setPending(true)
-    // Mock request — always reports success so no account can be probed.
-    window.setTimeout(() => {
+    try {
+      // Backend always returns a generic success response, whether or not the
+      // account exists, so this can't be used to probe for registered emails.
+      await authApi.forgotPassword(email.trim())
+    } catch {
+      // Swallow errors here too — never reveal account existence or surface
+      // transient failures on this screen.
+    } finally {
       setPending(false)
       setSent(true)
-    }, 600)
+    }
   }
 
   if (sent) {
     return (
       <AuthCard
         title="Check your email"
-        description={`If an account exists for ${email}, a reset link is on its way.`}
+        description={`If an account exists for ${email}, a reset code is on its way.`}
         footer={
           <Link
             href="/sign-in"
@@ -59,9 +66,9 @@ export function ForgotPasswordForm() {
       >
         <Alert className="border-farmer/30 bg-farmer/10">
           <MailCheck className="text-farmer" />
-          <AlertTitle>Reset link sent</AlertTitle>
+          <AlertTitle>Reset code sent</AlertTitle>
           <AlertDescription>
-            The link expires in 30 minutes. Check your spam folder if it does not arrive.
+            The code expires in 15 minutes. Check your spam folder if it does not arrive.
           </AlertDescription>
         </Alert>
 
@@ -69,11 +76,8 @@ export function ForgotPasswordForm() {
           href={`/change-password?email=${encodeURIComponent(email)}`}
           className={cn(buttonVariants({ variant: 'outline' }), 'mt-5 w-full')}
         >
-          Open the reset form
+          Enter your reset code
         </Link>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Demo shortcut — no email is actually sent.
-        </p>
       </AuthCard>
     )
   }
@@ -81,7 +85,7 @@ export function ForgotPasswordForm() {
   return (
     <AuthCard
       title="Reset your password"
-      description="Enter the email you registered with and we will send a reset link."
+      description="Enter the email you registered with and we will send a reset code."
       footer={
         <Link href="/sign-in" className="font-medium text-farmer hover:underline">
           Back to sign in
@@ -117,7 +121,7 @@ export function ForgotPasswordForm() {
             ) : (
               <KeyRound data-icon="inline-start" />
             )}
-            {pending ? 'Sending link…' : 'Send reset link'}
+            {pending ? 'Sending code…' : 'Send reset code'}
           </Button>
         </FieldGroup>
       </form>
@@ -125,31 +129,43 @@ export function ForgotPasswordForm() {
   )
 }
 
-/* --------------------------- change password ------------------------------ */
+/* --------------------------- reset password -------------------------------- */
 
 export function ChangePasswordForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const email = params.get('email')
+  const initialEmail = params.get('email') ?? ''
 
-  const [current, setCurrent] = React.useState('')
+  const [email, setEmail] = React.useState(initialEmail)
+  const [otp, setOtp] = React.useState('')
   const [next, setNext] = React.useState('')
   const [confirm, setConfirm] = React.useState('')
   const [pending, setPending] = React.useState(false)
   const [done, setDone] = React.useState(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   const mismatch = confirm.length > 0 && next !== confirm
   const tooWeak = next.length > 0 && passwordStrength(next).score < 2
+  const otpInvalid = otp.length > 0 && !/^\d{6}$/.test(otp)
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (mismatch || tooWeak) return
+    setErrorMessage(null)
+    if (mismatch || tooWeak || otpInvalid) return
+
     setPending(true)
-    // Mock update — simulated latency only.
-    window.setTimeout(() => {
+    try {
+      await authApi.resetPassword({
+        email: email.trim(),
+        otp: otp.trim(),
+        newPassword: next,
+      })
       setPending(false)
       setDone(true)
-    }, 600)
+    } catch (err: any) {
+      setPending(false)
+      setErrorMessage(err.data?.message || err.message || 'Could not reset your password. Please try again.')
+    }
   }
 
   if (done) {
@@ -168,9 +184,9 @@ export function ChangePasswordForm() {
 
         <Button
           className="mt-5 w-full bg-farmer text-background hover:bg-farmer/90"
-          onClick={() => router.push('/farmer')}
+          onClick={() => router.push('/sign-in')}
         >
-          Continue to dashboard
+          Continue to sign in
         </Button>
       </AuthCard>
     )
@@ -181,8 +197,8 @@ export function ChangePasswordForm() {
       title="Set a new password"
       description={
         email
-          ? `Choose a password for ${email}.`
-          : 'Choose a password you have not used before.'
+          ? `Enter the code sent to ${email} and choose a new password.`
+          : 'Enter your email, the code we sent you, and a new password.'
       }
       footer={
         <Link
@@ -196,25 +212,49 @@ export function ChangePasswordForm() {
     >
       <Alert className="mb-4 border-gold/40 bg-gold/10">
         <TriangleAlert className="text-gold-foreground" />
-        <AlertTitle>Temporary password in use</AlertTitle>
+        <AlertTitle>Check your email</AlertTitle>
         <AlertDescription>
-          You must replace the temporary password emailed to you before using WiMakit.
+          We emailed a 6-digit reset code. It expires 15 minutes after you request it.
         </AlertDescription>
       </Alert>
+
+      {errorMessage && (
+        <Alert variant="destructive" className="mb-4 border-destructive/30 bg-destructive/10">
+          <TriangleAlert />
+          <AlertTitle>Could not reset password</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      )}
 
       <form onSubmit={submit}>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="current-password">Temporary password</FieldLabel>
+            <FieldLabel htmlFor="reset-form-email">Email address</FieldLabel>
             <Input
-              id="current-password"
+              id="reset-form-email"
               required
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
+          </Field>
+
+          <Field data-invalid={otpInvalid || undefined}>
+            <FieldLabel htmlFor="reset-otp">Reset code</FieldLabel>
+            <Input
+              id="reset-otp"
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              aria-invalid={otpInvalid}
+              placeholder="6-digit code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+            {otpInvalid && <FieldError>Enter the 6-digit code from your email.</FieldError>}
           </Field>
 
           <Field data-invalid={tooWeak || undefined}>
@@ -250,7 +290,7 @@ export function ChangePasswordForm() {
           <Button
             type="submit"
             size="lg"
-            disabled={pending || mismatch || tooWeak}
+            disabled={pending || mismatch || tooWeak || otpInvalid}
             className="bg-farmer text-background hover:bg-farmer/90"
           >
             {pending && <Loader2 data-icon="inline-start" className="animate-spin" />}
