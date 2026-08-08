@@ -16,22 +16,29 @@ export function AuthCard({
   footer?: React.ReactNode
 }) {
   return (
-    <Card className="gap-0 overflow-hidden py-0 shadow-none">
-      <CardHeader className="flex-col gap-1 border-b border-border px-5 py-4">
-        <CardTitle className="font-display text-lg">{title}</CardTitle>
-        {description && (
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {description}
-          </p>
+    <div className="flex flex-col items-center gap-5">
+      <img
+        src="/wimakit-logo-stacked.png"
+        alt="WiMakit — Digital Agri-Marketplace"
+        className="h-24 w-auto object-contain"
+      />
+      <Card className="w-full gap-0 overflow-hidden py-0 shadow-none">
+        <CardHeader className="flex-col gap-1 border-b border-border px-5 py-4">
+          <CardTitle className="font-display text-lg">{title}</CardTitle>
+          {description && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="px-5 py-5">{children}</CardContent>
+        {footer && (
+          <div className="border-t border-border bg-secondary/40 px-5 py-3.5 text-sm">
+            {footer}
+          </div>
         )}
-      </CardHeader>
-      <CardContent className="px-5 py-5">{children}</CardContent>
-      {footer && (
-        <div className="border-t border-border bg-secondary/40 px-5 py-3.5 text-sm">
-          {footer}
-        </div>
-      )}
-    </Card>
+      </Card>
+    </div>
   )
 }
 

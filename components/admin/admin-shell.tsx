@@ -72,9 +72,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <SheetContent side="left" className="w-64 bg-sidebar p-0">
           <SheetHeader className="border-b border-sidebar-border">
             <SheetTitle className="flex items-center gap-2.5 text-sm">
-              <span className="flex size-7 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">
-                WM
-              </span>
+              <img
+                src="/wimakit-icon.png"
+                alt="WiMakit"
+                className="size-7 shrink-0 object-contain"
+              />
               WiMakit SuperAdmin
             </SheetTitle>
           </SheetHeader>

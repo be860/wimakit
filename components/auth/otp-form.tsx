@@ -161,13 +161,6 @@ export function OtpForm() {
           {seconds > 0 ? `Resend code in ${seconds}s` : 'Resend code'}
         </Button>
       </div>
-
-      <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-border bg-secondary/40 px-3.5 py-3">
-        <MailCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Demo default OTP is <span className="tabular font-semibold text-foreground">482913</span>. Enter it above to verify your account.
-        </p>
-      </div>
     </AuthCard>
   )
 }

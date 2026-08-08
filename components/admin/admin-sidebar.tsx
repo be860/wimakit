@@ -150,9 +150,11 @@ export function AdminSidebar({
           collapsed && 'justify-center px-0',
         )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">
-          WM
-        </span>
+        <img
+          src="/wimakit-icon.png"
+          alt="WiMakit"
+          className="size-7 shrink-0 object-contain"
+        />
         {!collapsed && (
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="font-display truncate text-sm">WiMakit</span>

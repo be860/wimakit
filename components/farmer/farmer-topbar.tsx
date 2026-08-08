@@ -59,9 +59,11 @@ export function FarmerTopbar() {
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur-sm lg:px-6">
       {/* Mobile logo */}
       <div className="flex items-center gap-2 md:hidden">
-        <span className="flex size-7 items-center justify-center rounded-md bg-farmer text-[11px] font-semibold text-background">
-          WM
-        </span>
+        <img
+          src="/wimakit-icon.png"
+          alt="WiMakit"
+          className="size-7 object-contain"
+        />
         <span className="font-display text-sm">WiMakit</span>
       </div>
 

@@ -103,8 +103,12 @@ export function SuperAdminSignInForm() {
 
         {/* Minimal header badge */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3 shadow-inner">
-            <Lock className="size-6" />
+          <div className="flex size-14 items-center justify-center rounded-xl bg-white p-2 mb-3 shadow-inner">
+            <img
+              src="/wimakit-icon.png"
+              alt="WiMakit"
+              className="h-full w-full object-contain"
+            />
           </div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-100">WiMakit Platform Oversight</h1>
           <p className="mt-1 text-xs text-slate-400">Secure SuperAdmin Access Control · Restricted</p>

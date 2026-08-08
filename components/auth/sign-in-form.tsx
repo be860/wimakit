@@ -62,12 +62,12 @@ export function SignInForm() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header banner */}
       <div className="border-b border-border bg-farmer/8 px-5 py-3.5">
-        <div className="mx-auto flex max-w-sm items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-farmer text-background text-sm font-bold">W</span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">WiMakit</p>
-            <p className="text-[11px] text-muted-foreground">Agricultural Marketplace · Sierra Leone</p>
-          </div>
+        <div className="mx-auto flex max-w-sm items-center justify-center">
+          <img
+            src="/wimakit-logo-horizontal.png"
+            alt="WiMakit — Digital Agri-Marketplace"
+            className="h-9 w-auto object-contain"
+          />
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export function SignInForm() {
               If you forgot your password or are signing in for the first time, use <strong>Forgot password?</strong> above. You will receive a code on your email.
             </p>
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              For assistance, call WiMakit support: <strong className="text-foreground">+232 76 000 000</strong>
+              For assistance, call WiMakit support: <strong className="text-foreground">+232 73 834941</strong>
             </p>
           </div>
         </div>

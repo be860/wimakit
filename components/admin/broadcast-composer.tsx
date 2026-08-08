@@ -78,11 +78,6 @@ export function BroadcastComposer({ onSent }: Props) {
             <Select
               value={targetRole}
               onValueChange={(v) => setTargetRole(v as string)}
-              items={{
-                all: 'All users',
-                farmer: 'Farmers',
-                buyer: 'Buyers',
-              }}
             >
               <SelectTrigger id="audience">
                 <SelectValue />
@@ -96,12 +91,7 @@ export function BroadcastComposer({ onSent }: Props) {
           </Field>
           <Field>
             <FieldLabel htmlFor="channel">Channel</FieldLabel>
-            <Select
-              defaultValue="inapp"
-              items={{
-                inapp: 'In-app',
-              }}
-            >
+            <Select defaultValue="inapp">
               <SelectTrigger id="channel">
                 <SelectValue />
               </SelectTrigger>
