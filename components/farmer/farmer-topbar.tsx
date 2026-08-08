@@ -112,10 +112,12 @@ export function FarmerTopbar() {
             }
           />
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel className="flex items-center justify-between">
-              Notifications
-              <Badge variant="secondary">{unread} new</Badge>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex items-center justify-between">
+                Notifications
+                <Badge variant="secondary">{unread} new</Badge>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {notifications.length === 0 ? (
@@ -176,18 +178,20 @@ export function FarmerTopbar() {
             }
           />
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="flex flex-col gap-1">
-              <span className="text-sm font-medium">{user?.fullName || 'Farmer'}</span>
-              <span className="text-xs text-muted-foreground">
-                {user?.email || ''}
-              </span>
-              <Badge
-                variant="outline"
-                className="mt-1 w-fit border-farmer/30 bg-farmer/10 text-farmer"
-              >
-                Farmer
-              </Badge>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex flex-col gap-1">
+                <span className="text-sm font-medium">{user?.fullName || 'Farmer'}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user?.email || ''}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="mt-1 w-fit border-farmer/30 bg-farmer/10 text-farmer"
+                >
+                  Farmer
+                </Badge>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem
