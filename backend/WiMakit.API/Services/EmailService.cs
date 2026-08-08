@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
@@ -230,31 +231,62 @@ response.EnsureSuccessStatusCode();
         }
 
         /// <summary>
-        /// Publicly reachable URL of the WiMakit logo, used in the header of every
-        /// outbound email instead of an emoji so branding renders consistently
-        /// across email clients.
+        /// Base64 data URI for the WiMakit logo, lazily loaded once from the
+        /// embedded resource and reused for every email. Embedding the logo
+        /// keeps branding rendering correctly in emails regardless of whether
+        /// the frontend domain is live, reachable, or blocks hotlinking —
+        /// there's no external image request for the email client to make.
         /// </summary>
-        private string GetLogoUrl()
+        private static readonly Lazy<string> LogoDataUri = new(() =>
         {
-            var configured = _configuration["App:LogoUrl"]?.Trim();
-            if (!string.IsNullOrWhiteSpace(configured))
-                return configured;
+            var assembly = Assembly.GetExecutingAssembly();
+            const string resourceName = "WiMakit.API.Assets.wimakit-logo.png";
 
-            var frontendUrl = _configuration["App:FrontendUrl"]?.Trim().TrimEnd('/')
-                ?? "https://wimakit.shop";
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                return string.Empty;
 
-            return $"{frontendUrl}/wimakit-logo-horizontal.png";
-        }
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var base64 = Convert.ToBase64String(memoryStream.ToArray());
+
+            return $"data:image/png;base64,{base64}";
+        });
 
         private string GetEmailHeader()
         {
-            var logoUrl = GetLogoUrl();
+            var logoMarkup = BuildLogoMarkup();
+
             return $@"
                     <tr>
                         <td style='padding: 32px 40px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px 8px 0 0;'>
-                            <img src='{logoUrl}' alt='WiMakit' style='height: 36px; width: auto; max-width: 220px; display: inline-block;' />
+                            {logoMarkup}
                         </td>
                     </tr>";
+        }
+
+        /// <summary>
+        /// Prefers a hosted URL to the logo (served from this API's own
+        /// wwwroot, so it isn't at the mercy of the frontend domain being up)
+        /// when "App:ApiBaseUrl" is configured — this renders more reliably
+        /// across email clients than an inline image. Falls back to an
+        /// embedded base64 data URI, and finally to plain text, so branding
+        /// never fully breaks even with zero configuration.
+        /// </summary>
+        private string BuildLogoMarkup()
+        {
+            var apiBaseUrl = _configuration["App:ApiBaseUrl"]?.Trim().TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(apiBaseUrl))
+            {
+                var logoUrl = $"{apiBaseUrl}/images/wimakit-logo.png";
+                return $"<img src='{logoUrl}' alt='WiMakit' style='height: 36px; width: auto; max-width: 220px; display: inline-block;' />";
+            }
+
+            var logoDataUri = LogoDataUri.Value;
+            if (!string.IsNullOrEmpty(logoDataUri))
+                return $"<img src='{logoDataUri}' alt='WiMakit' style='height: 36px; width: auto; max-width: 220px; display: inline-block;' />";
+
+            return "<h1 style='margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;'>WiMakit</h1>";
         }
 
         private string GetFarmerApprovalEmailTemplate(string fullName, string email, string temporaryPassword)
