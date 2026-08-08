@@ -241,7 +241,7 @@ response.EnsureSuccessStatusCode();
                 return configured;
 
             var frontendUrl = _configuration["App:FrontendUrl"]?.Trim().TrimEnd('/')
-                ?? "https://wimakit.vercel.app";
+                ?? "https://wimakit.shop";
 
             return $"{frontendUrl}/wimakit-logo-horizontal.png";
         }
