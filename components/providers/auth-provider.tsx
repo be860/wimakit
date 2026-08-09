@@ -18,6 +18,7 @@ export interface UserSession {
   verificationStatus?: string;
   status?: string;
   isEmailVerified: boolean;
+  profilePhotoUrl?: string | null;
 }
 
 interface AuthContextType {

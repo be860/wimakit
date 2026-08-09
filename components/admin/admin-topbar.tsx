@@ -7,7 +7,7 @@ import { Bell, ChevronDown, LogOut, Menu, Search, Settings, UserCog } from 'luci
 
 import { adminApi, NotificationItem } from '@/lib/admin/api'
 import { useAuth } from '@/components/providers/auth-provider'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -150,6 +150,7 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
             render={
               <Button variant="ghost" className="h-9 gap-2 pr-2 pl-1.5">
                 <Avatar className="size-6.5">
+                  {user?.profilePhotoUrl && <AvatarImage src={user.profilePhotoUrl} alt={displayName} />}
                   <AvatarFallback className="text-[11px]">{initials(displayName)}</AvatarFallback>
                 </Avatar>
                 <span className="hidden text-sm font-medium sm:inline">{displayName}</span>
@@ -158,15 +159,13 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
             }
           />
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex flex-col gap-1">
-                <span className="text-sm font-medium">{displayName}</span>
-                <span className="text-xs text-muted-foreground">{email}</span>
-                <Badge variant="outline" className="mt-1 w-fit">
-                  {role}
-                </Badge>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
+            <DropdownMenuLabel className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{displayName}</span>
+              <span className="text-xs text-muted-foreground">{email}</span>
+              <Badge variant="outline" className="mt-1 w-fit">
+                {role}
+              </Badge>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => router.push('/admin/profile')} className="cursor-pointer">

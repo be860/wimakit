@@ -6,6 +6,8 @@ import { ShieldAlert } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { PageHeader } from '@/components/admin/primitives'
 import { AuditTable } from '@/components/admin/audit-table'
+import { SystemLogTable } from '@/components/admin/system-log-table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function AuditLogPage() {
   const { user, isLoading } = useAuth()
@@ -39,9 +41,20 @@ export default function AuditLogPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Audit Log"
-        description="A complete, filterable record of every privileged action taken by staff."
+        description="Privileged staff actions and the full system-wide request trail."
       />
-      <AuditTable />
+      <Tabs defaultValue="actions">
+        <TabsList>
+          <TabsTrigger value="actions">Privileged Actions</TabsTrigger>
+          <TabsTrigger value="requests">All Requests</TabsTrigger>
+        </TabsList>
+        <TabsContent value="actions">
+          <AuditTable />
+        </TabsContent>
+        <TabsContent value="requests">
+          <SystemLogTable />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

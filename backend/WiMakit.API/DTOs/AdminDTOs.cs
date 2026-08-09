@@ -222,6 +222,21 @@ namespace WiMakit.API.DTOs
         public string? TargetRole { get; set; }
     }
 
+     public class RequestLogDTO
+    {
+        public long Id { get; set; }
+        public string Method { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public string? QueryString { get; set; }
+        public int StatusCode { get; set; }
+        public long DurationMs { get; set; }
+        public int? UserId { get; set; }
+        public string? UserEmail { get; set; }
+        public string? UserRole { get; set; }
+        public string? IpAddress { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
     public class AuditLogDTO
     {
         public int Id { get; set; }

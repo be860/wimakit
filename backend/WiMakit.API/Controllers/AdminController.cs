@@ -163,6 +163,18 @@ namespace WiMakit.API.Controllers
             return Ok(logs);
         }
 
+        /// <summary>
+        /// Full system-wide request audit trail — every API request from any
+        /// user/role, not just curated privileged admin actions. SuperAdmin-only.
+        /// </summary>
+        [HttpGet("system-logs")]
+        [Authorize(Policy = "RequireSuperAdmin")]
+        public async Task<IActionResult> GetSystemLogs([FromQuery] int take = 200)
+        {
+            var logs = await _adminService.GetSystemLogsAsync(take);
+            return Ok(logs);
+        }
+
         [HttpPost("notifications/broadcast")]
         public async Task<IActionResult> BroadcastNotification([FromBody] BroadcastNotificationRequest request)
         {

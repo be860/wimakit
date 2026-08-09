@@ -124,6 +124,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseStorageService>();
 
 // ── Database (EF Core with Supabase PostgreSQL) ──────────────────────────────
@@ -277,6 +278,7 @@ app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<WiMakit.API.Middleware.RequestAuditMiddleware>();
 app.MapControllers().RequireRateLimiting("api-general");
 app.MapHealthChecks("/health");
 

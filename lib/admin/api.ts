@@ -110,6 +110,44 @@ export interface NotificationItem {
   createdAt: string
 }
 
+export interface Category {
+  id: number
+  name: string
+  slug: string
+  commission: number
+  active: boolean
+  productCount: number
+  createdAt: string
+}
+
+export interface RequestLogEntry {
+  id: number
+  method: string
+  path: string
+  queryString?: string
+  statusCode: number
+  durationMs: number
+  userId?: number
+  userEmail?: string
+  userRole?: string
+  ipAddress?: string
+  createdAt: string
+}
+
+export interface PlatformSettingsData {
+  platformName: string
+  supportEmail: string
+  displayCurrency: string
+  baseCommission: number
+  payoutSchedule: string
+  manualReviewThreshold: number
+  requireNinVerification: boolean
+  autoHoldHighValueOrders: boolean
+  requireTwoFactorForStaff: boolean
+  updatedAt?: string
+  updatedBy?: string
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const adminApi = {
@@ -198,6 +236,7 @@ export const adminApi = {
     apiClient.put(`/api/admin/fraud-cases/${id}/status`, { status, assignedTo }),
 
   getAuditLogs: () => apiClient.get<AuditLogEntry[]>('/api/admin/audit-logs'),
+  getSystemLogs: (take = 200) => apiClient.get<RequestLogEntry[]>(`/api/admin/system-logs?take=${take}`),
 
   broadcastNotification: (title: string, body: string, targetRole?: string) =>
     apiClient.post('/api/admin/notifications/broadcast', { title, body, targetRole }),
@@ -205,6 +244,25 @@ export const adminApi = {
   getNotifications: () => apiClient.get<NotificationItem[]>('/api/notifications'),
 
   markNotificationRead: (id: number) => apiClient.put(`/api/notifications/${id}/read`, {}),
+  getSettings: () => apiClient.get<PlatformSettingsData>('/api/admin/settings'),
+  
+    updateSettings: (data: PlatformSettingsData) =>
+      apiClient.put<PlatformSettingsData>('/api/admin/settings', data),
+}
+
+export const categoriesApi = {
+  getAll: () => apiClient.get<Category[]>('/api/categories'),
+
+  create: (data: { name: string; slug?: string; commission: number; active: boolean }) =>
+    apiClient.post<Category>('/api/categories', data),
+
+  update: (id: number, data: { name: string; slug?: string; commission: number; active: boolean }) =>
+    apiClient.put<Category>(`/api/categories/${id}`, data),
+
+  toggleActive: (id: number) =>
+    apiClient.patch<{ message: string }>(`/api/categories/${id}/toggle`, {}),
+
+  remove: (id: number) => apiClient.delete<{ message: string }>(`/api/categories/${id}`),
 }
 
 // ─── Currency helper ──────────────────────────────────────────────────────────

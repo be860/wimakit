@@ -32,11 +32,12 @@ namespace WiMakit.API.Services
             return notifications.Select(n => new NotificationDTO
             {
                 Id = n.Id,
+                UserId = n.UserId,
                 Type = n.Type,
                 Title = n.Title,
                 Body = n.Body,
-                At = n.CreatedAt,
-                Unread = n.IsUnread
+                CreatedAt = n.CreatedAt,
+                IsUnread = n.IsUnread
             });
         }
 
@@ -68,11 +69,12 @@ namespace WiMakit.API.Services
             return new NotificationDTO
             {
                 Id = notif.Id,
+                UserId = notif.UserId,
                 Type = notif.Type,
                 Title = notif.Title,
                 Body = notif.Body,
-                At = notif.CreatedAt,
-                Unread = notif.IsUnread
+                CreatedAt = notif.CreatedAt,
+                IsUnread = notif.IsUnread
             };
         }
     }

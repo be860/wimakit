@@ -645,19 +645,71 @@ namespace WiMakit.API.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<RequestLogDTO>> GetSystemLogsAsync(int take = 200)
+        {
+            if (take <= 0) take = 200;
+            if (take > 1000) take = 1000; // guardrail against accidentally pulling the whole table
+
+            return await _context.RequestLogs
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(take)
+                .Select(r => new RequestLogDTO
+                {
+                    Id = r.Id,
+                    Method = r.Method,
+                    Path = r.Path,
+                    QueryString = r.QueryString,
+                    StatusCode = r.StatusCode,
+                    DurationMs = r.DurationMs,
+                    UserId = r.UserId,
+                    UserEmail = r.UserEmail,
+                    UserRole = r.UserRole,
+                    IpAddress = r.IpAddress,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+        }
+
         public async Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request, int adminId, string adminName)
         {
-            var notif = new Notification
-            {
-                UserId = null,
-                Type = "broadcast",
-                Title = request.Title,
-                Body = request.Body,
-                IsUnread = true,
-                CreatedAt = DateTime.UtcNow
-            };
+            var normalizedRole = request.TargetRole?.Trim().ToLowerInvariant();
+            var isTargeted = !string.IsNullOrEmpty(normalizedRole) && normalizedRole != "all";
 
-            _context.Notifications.Add(notif);
+            if (isTargeted)
+            {
+                // Targeted audience: one Notification row per matching user, so
+                // farmers/buyers outside the chosen audience never see it.
+                var recipientIds = await _context.Users
+                    .Where(u => u.Role.ToLower() == normalizedRole)
+                    .Select(u => u.Id)
+                    .ToListAsync();
+
+                foreach (var userId in recipientIds)
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = userId,
+                        Type = "broadcast",
+                        Title = request.Title,
+                        Body = request.Body,
+                        IsUnread = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                // Global broadcast: UserId = null is picked up for every signed-in user.
+                _context.Notifications.Add(new Notification
+                {
+                    UserId = null,
+                    Type = "broadcast",
+                    Title = request.Title,
+                    Body = request.Body,
+                    IsUnread = true,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
 
             _context.AuditLogs.Add(new AuditLog
             {
@@ -666,7 +718,9 @@ namespace WiMakit.API.Services
                 Action = "BROADCAST_NOTIFICATION",
                 TargetType = "Notification",
                 TargetId = null,
-                Details = $"Broadcast: {request.Title}",
+                Details = isTargeted
+                    ? $"Broadcast to {normalizedRole}s: {request.Title}"
+                    : $"Broadcast to all users: {request.Title}",
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -674,6 +728,21 @@ namespace WiMakit.API.Services
             return true;
         }
 
+         public async Task WriteAuditLogAsync(string action, string? targetType, string? targetId, string? details, int adminId, string adminName)
+        {
+            _context.AuditLogs.Add(new AuditLog
+            {
+                AdminId = adminId,
+                AdminName = adminName,
+                Action = action,
+                TargetType = targetType,
+                TargetId = targetId,
+                Details = details,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+        }
         public async Task<(bool success, string message, UserDTO? user)> CreateAdminAsync(CreateAdminRequest request, int creatorId, string creatorName)
         {
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();

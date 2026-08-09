@@ -8,6 +8,7 @@ namespace WiMakit.API.Services
     {
         Task<UserProfileDTO?> GetProfileAsync(int userId);
         Task<UserProfileDTO?> UpdateProfileAsync(int userId, UpdateUserProfileRequest request);
+        Task<UserProfileDTO?> SetProfilePhotoAsync(int userId, string photoUrl);
     }
 
     public class UserService : IUserService
@@ -55,6 +56,18 @@ namespace WiMakit.API.Services
             return MapToDTO(user);
         }
 
+        public async Task<UserProfileDTO?> SetProfilePhotoAsync(int userId, string photoUrl)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return null;
+
+            user.ProfilePhotoUrl = photoUrl;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return MapToDTO(user);
+        }
+
         private static UserProfileDTO MapToDTO(Models.User user) => new()
         {
             Id = user.Id,
@@ -62,6 +75,7 @@ namespace WiMakit.API.Services
             LastName = user.LastName,
             Email = user.Email,
             Role = user.Role,
+            ProfilePhotoUrl = user.ProfilePhotoUrl,
             Phone = user.Phone,
             Location = user.Location,
             Nin = user.NIN,

@@ -8,6 +8,7 @@ namespace WiMakit.API.DTOs
         public string FullName => $"{FirstName} {LastName}".Trim();
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
+        public string? ProfilePhotoUrl { get; set; }
         public string? Phone { get; set; }
         public string? Location { get; set; }
         public string? Nin { get; set; }

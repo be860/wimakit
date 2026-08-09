@@ -18,6 +18,9 @@ namespace WiMakit.API.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<FraudCase> FraudCases { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<RequestLog> RequestLogs { get; set; }
+        public DbSet<PlatformSettings> PlatformSettings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +29,11 @@ namespace WiMakit.API.Data
             // Configure User entity
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
+                .IsUnique();
+
+            // Configure Category entity
+            modelBuilder.Entity<Category>()
+                .HasIndex(c => c.Slug)
                 .IsUnique();
 
             // Configure Produce relationships

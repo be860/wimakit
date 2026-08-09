@@ -20,7 +20,9 @@ namespace WiMakit.API.Services
         Task<FraudCaseDTO?> GetFraudCaseByIdAsync(int id);
         Task<bool> UpdateFraudCaseStatusAsync(int id, string status, string? assignedTo, int adminId, string adminName);
         Task<IEnumerable<AuditLogDTO>> GetAuditLogsAsync();
+        Task<IEnumerable<RequestLogDTO>> GetSystemLogsAsync(int take = 200);
         Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request, int adminId, string adminName);
         Task<(bool success, string message, UserDTO? user)> CreateAdminAsync(CreateAdminRequest request, int creatorId, string creatorName);
+        Task WriteAuditLogAsync(string action, string? targetType, string? targetId, string? details, int adminId, string adminName);
     }
 }
