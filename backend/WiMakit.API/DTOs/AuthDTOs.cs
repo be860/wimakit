@@ -49,6 +49,24 @@ namespace WiMakit.API.DTOs
         [MaxLength(50, ErrorMessage = "Business type cannot exceed 50 characters.")]
         public string? BusinessType { get; set; }
 
+        [MaxLength(150, ErrorMessage = "Farm name cannot exceed 150 characters.")]
+        public string? FarmName { get; set; }
+
+        [MaxLength(200, ErrorMessage = "Farm address cannot exceed 200 characters.")]
+        public string? FarmAddress { get; set; }
+
+        [MaxLength(2000, ErrorMessage = "Farm description cannot exceed 2000 characters.")]
+        public string? FarmDescription { get; set; }
+
+        [MaxLength(300, ErrorMessage = "Primary crops cannot exceed 300 characters.")]
+        public string? PrimaryCrops { get; set; }
+
+        [MaxLength(100, ErrorMessage = "Chiefdom cannot exceed 100 characters.")]
+        public string? Chiefdom { get; set; }
+
+        [MaxLength(100, ErrorMessage = "Community cannot exceed 100 characters.")]
+        public string? Community { get; set; }
+
         [MaxLength(50, ErrorMessage = "NIN cannot exceed 50 characters.")]
         public string? NIN { get; set; }
 
@@ -107,8 +125,15 @@ namespace WiMakit.API.DTOs
         public string? Location { get; set; }
         public string? FarmSize { get; set; }
         public string? FarmingExperience { get; set; }
-        public string? BusinessName { get; set; }
+       public string? BusinessName { get; set; }
         public string? BusinessType { get; set; }
+        public string? District { get; set; }
+        public string? Chiefdom { get; set; }
+        public string? Community { get; set; }
+        public string? FarmName { get; set; }
+        public string? FarmAddress { get; set; }
+        public string? FarmDescription { get; set; }
+        public string? PrimaryCrops { get; set; }
         public bool IsEmailVerified { get; set; }
         public bool MustChangePassword { get; set; }
         public bool HasGoogleAuth { get; set; }

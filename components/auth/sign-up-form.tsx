@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PasswordStrength } from '@/components/auth/primitives'
+import { Textarea } from '@/components/ui/textarea'
+
 
 // Western Area Rural District locations (case study context)
 const DISTRICTS = [
@@ -101,11 +103,15 @@ export function SignUpForm() {
   const [profilePhotoFile, setProfilePhotoFile] = React.useState<File | null>(null)
   const [profilePhotoPreview, setProfilePhotoPreview] = React.useState<string | null>(null)
 
-  // step 2
+ // step 2
   const [farmName, setFarmName] = React.useState('')
   const [district, setDistrict] = React.useState('')
+  const [chiefdom, setChiefdom] = React.useState('')
+  const [community, setCommunity] = React.useState('')
   const [size, setSize] = React.useState('')
   const [crops, setCrops] = React.useState<string[]>([])
+  const [farmAddress, setFarmAddress] = React.useState('')
+  const [farmDescription, setFarmDescription] = React.useState('')
   const [farmPhotoFile, setFarmPhotoFile] = React.useState<File | null>(null)
   const [farmPhotoPreview, setFarmPhotoPreview] = React.useState<string | null>(null)
 
@@ -195,6 +201,12 @@ export function SignUpForm() {
       formData.append('role', 'farmer')
       if (phone.trim()) formData.append('phone', phone.trim())
       formData.append('location', district || farmName || 'Sierra Leone')
+      if (chiefdom.trim()) formData.append('chiefdom', chiefdom.trim())
+      if (community.trim()) formData.append('community', community.trim())
+      if (farmName.trim()) formData.append('farmName', farmName.trim())
+      if (farmAddress.trim()) formData.append('farmAddress', farmAddress.trim())
+      if (farmDescription.trim()) formData.append('farmDescription', farmDescription.trim())
+      if (crops.length) formData.append('primaryCrops', crops.join(', '))
       formData.append('farmSize', size || '1 - 5 Acres')
       formData.append('farmingExperience', '1-3 Years')
       formData.append('nin', idNumber.trim())
@@ -460,6 +472,37 @@ export function SignUpForm() {
                       </Select>
                     </Field>
 
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field>
+                        <FieldLabel htmlFor="chiefdom">Chiefdom <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
+                        <Input
+                          id="chiefdom"
+                          placeholder="e.g. Koya"
+                          value={chiefdom}
+                          onChange={(e) => setChiefdom(e.target.value)}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="community">Community <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
+                        <Input
+                          id="community"
+                          placeholder="e.g. Grafton"
+                          value={community}
+                          onChange={(e) => setCommunity(e.target.value)}
+                        />
+                      </Field>
+                    </div>
+
+                    <Field>
+                      <FieldLabel htmlFor="farmAddress">Farm address <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
+                      <Input
+                        id="farmAddress"
+                        placeholder="e.g. Off Waterloo-Tombo Highway"
+                        value={farmAddress}
+                        onChange={(e) => setFarmAddress(e.target.value)}
+                      />
+                    </Field>
+
                     <Field>
                       <FieldLabel htmlFor="size">Farm size <span className="text-muted-foreground font-normal">(approximate)</span></FieldLabel>
                       <Select value={size} onValueChange={(val) => setSize(val ?? '')}>
@@ -502,6 +545,17 @@ export function SignUpForm() {
                           )
                         })}
                       </div>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="farmDescription">Farm description <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
+                      <Textarea
+                        id="farmDescription"
+                        rows={3}
+                        placeholder="Tell buyers what makes your farm different — growing methods, harvest season, etc."
+                        value={farmDescription}
+                        onChange={(e) => setFarmDescription(e.target.value)}
+                      />
                     </Field>
 
                     <Field>
