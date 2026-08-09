@@ -110,7 +110,7 @@ export function SignInForm() {
             <div className="border-b border-border px-5 py-4">
               <h2 className="font-display text-base font-semibold">Sign in to your account</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Farmers, buyers, and platform staff sign in here.
+                Farmers and platform staff sign in here. Buyers use the WiMakit mobile app.
               </p>
             </div>
 
@@ -195,7 +195,7 @@ export function SignInForm() {
               If you forgot your password or are signing in for the first time, use <strong>Forgot password?</strong> above. You will receive a code on your email.
             </p>
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              For assistance, call WiMakit support: <strong className="text-foreground">+232 73 834941</strong>
+              For assistance, call WiMakit support: <strong className="text-foreground">+232 73834941</strong>
             </p>
           </div>
         </div>

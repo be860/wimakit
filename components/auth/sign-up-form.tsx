@@ -376,7 +376,7 @@ export function SignUpForm() {
                         onChange={(e) => setPhone(e.target.value)}
                       />
                       <FieldDescription>
-                        Orange, Africell, or AfriMoney number.
+                        Orange, Africell, Qcell or MobileMoney number.
                       </FieldDescription>
                     </Field>
 

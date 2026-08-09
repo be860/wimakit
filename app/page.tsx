@@ -9,7 +9,9 @@ import {
   MapPinned,
   MessagesSquare,
   PackageSearch,
+  Play,
   ShieldAlert,
+  Smartphone,
   Star,
   Wallet,
 } from 'lucide-react'
@@ -53,6 +55,27 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   )
 }
 
+/* ------------------------ mobile app "coming soon" ------------------------- */
+/* Buyers don't get a web account — they'll sign up and shop from the WiMakit
+   mobile app once it ships. This badge is an intentional placeholder: it
+   reads clearly as "not live yet" rather than pretending to be a real store
+   link, and every use points at #get-the-app so the promise is explained
+   in one place. Swap the href for the real Play Store listing at launch. */
+function AppStoreBadge({ className }: { className?: string }) {
+  return (
+    <a
+      href="#get-the-app"
+      className={`group inline-flex items-center gap-2.5 rounded-xl border border-foreground/15 bg-foreground px-4 py-2.5 text-background transition-colors hover:bg-foreground/90 ${className ?? ''}`}
+    >
+      <Play className="size-5 shrink-0 fill-current" />
+      <span className="flex flex-col leading-none">
+        <span className="text-[10px] tracking-wide text-background/70">COMING SOON ON</span>
+        <span className="mt-0.5 text-[15px] font-semibold">Google Play</span>
+      </span>
+    </a>
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 
 export default function LandingPage() {
@@ -65,6 +88,7 @@ export default function LandingPage() {
         <FarmerBenefits />
         <BuyerBenefits />
         <FeaturesGrid />
+        <GetTheAppSection />
         <VerificationBand />
         <ClosingCta />
       </main>
@@ -96,6 +120,9 @@ function SiteNav() {
           <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Features
           </a>
+          <a href="#get-the-app" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Get the App
+          </a>
         </nav>
         <div className="flex items-center gap-2.5">
           <Button variant="ghost" className="h-9 px-3" render={<Link href="/sign-in" />}>
@@ -105,7 +132,7 @@ function SiteNav() {
             className="h-9 bg-farmer px-4 text-background hover:bg-farmer/90"
             render={<Link href="/sign-up" />}
           >
-            Register
+            Register as a Farmer
           </Button>
         </div>
       </div>
@@ -165,7 +192,15 @@ function Hero() {
             </Button>
           </div>
 
-          <ul className="mt-7 flex flex-col gap-2">
+          <p className="mt-4 text-[12.5px] text-muted-foreground">
+            Buying produce instead?{' '}
+            <a href="#get-the-app" className="font-medium text-buyer hover:underline">
+              Get the WiMakit app
+            </a>{' '}
+            — the web dashboard above is for farmers and platform staff.
+          </p>
+
+          <ul className="mt-6 flex flex-col gap-2">
             {[
               'Every farmer ID and NIN verified',
               'Direct messaging — no brokers, no markups',
@@ -334,16 +369,15 @@ function BuyerBenefits() {
             </h2>
             <p className="mt-3 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground">
               Skip the guesswork. Buy from farmers who've been checked,
-              reviewed, and held to a track record.
+              reviewed, and held to a track record — right from your phone.
             </p>
-            <Button
-              variant="outline"
-              className="mt-6 h-10 gap-1.5 rounded-lg border-buyer/30 px-4 text-buyer hover:bg-buyer/5"
-              render={<Link href="/sign-up" />}
-            >
-              Register as a Buyer
-              <ArrowRight className="size-4" />
-            </Button>
+            <div className="mt-6 flex flex-col items-start gap-2.5">
+              <AppStoreBadge />
+              <p className="text-[12px] text-muted-foreground">
+                The WiMakit buyer app is on its way — this web dashboard is
+                for farmers and platform staff.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -392,6 +426,40 @@ function FeaturesGrid() {
   )
 }
 
+/* ------------------------------ get the app --------------------------------- */
+/* Dedicated anchor target for every "Get the app" / "Register as a Buyer"
+   link on the page. Keeps the "buyers are mobile-only, and it's not live
+   yet" story in exactly one place instead of repeated inline across
+   sections. Update this block (and AppStoreBadge's href) once the app is
+   actually published — that's the only place the real store link needs
+   to go in. */
+function GetTheAppSection() {
+  return (
+    <section id="get-the-app" className="border-t border-border/70 bg-buyer/[0.06]">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 py-16 lg:grid-cols-[1fr_auto] lg:px-8 lg:py-20">
+        <div>
+          <Eyebrow>For Buyers · Mobile App</Eyebrow>
+          <h2 className={`${fraunces.className} max-w-md text-3xl font-semibold tracking-[-0.01em] text-foreground sm:text-[2.15rem]`}>
+            Buying is moving to the WiMakit app
+          </h2>
+          <p className="mt-4 max-w-md text-[14px] leading-relaxed text-muted-foreground">
+            Browse verified farmers, message them directly, and track your
+            orders from your phone. Buyer accounts are created in the app —
+            there's no separate buyer sign-up on this website.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <AppStoreBadge />
+            <span className="text-[12.5px] text-muted-foreground">
+              Not available yet — we'll announce it here first.
+            </span>
+          </div>
+        </div>
+        <Smartphone className="size-16 shrink-0 text-buyer/25 lg:size-24" strokeWidth={1.25} />
+      </div>
+    </section>
+  )
+}
+
 /* ----------------------------- verification band ----------------------------- */
 
 function VerificationBand() {
@@ -430,25 +498,56 @@ function VerificationBand() {
 function ClosingCta() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-20">
-      <div className="flex flex-col items-center gap-5 rounded-2xl border border-border bg-card px-6 py-12 text-center">
+      <div className="flex flex-col items-center gap-2 text-center">
         <h2 className={`${fraunces.className} max-w-md text-[1.9rem] font-semibold tracking-[-0.01em] text-foreground`}>
           Ready to sell direct, or buy verified?
         </h2>
         <p className="max-w-sm text-[13.5px] leading-relaxed text-muted-foreground">
-          Registration takes a few minutes. Your account is reviewed by our
-          team before you can start.
+          Two ways in — one for farmers and staff on the web, one for buyers
+          on mobile.
         </p>
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
-          <Button
-            className="h-11 gap-1.5 rounded-lg bg-farmer px-5 text-[15px] text-background hover:bg-farmer/90"
-            render={<Link href="/sign-up" />}
-          >
-            Register as a Farmer
-            <ArrowRight className="size-4" />
-          </Button>
-          <Button variant="outline" className="h-11 rounded-lg px-5 text-[15px]" render={<Link href="/sign-in" />}>
-            Sign in
-          </Button>
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-10 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full bg-farmer/10 text-farmer">
+            <BadgeCheck className="size-5" />
+          </span>
+          <div>
+            <h3 className="text-[15px] font-semibold text-foreground">Farmers &amp; platform staff</h3>
+            <p className="mt-1 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground">
+              Registration takes a few minutes. Your account is reviewed by
+              our team before you can start.
+            </p>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              className="h-10 gap-1.5 rounded-lg bg-farmer px-4 text-[14px] text-background hover:bg-farmer/90"
+              render={<Link href="/sign-up" />}
+            >
+              Register as a Farmer
+              <ArrowRight className="size-4" />
+            </Button>
+            <Button variant="outline" className="h-10 rounded-lg px-4 text-[14px]" render={<Link href="/sign-in" />}>
+              Sign in
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-10 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full bg-buyer/10 text-buyer">
+            <Smartphone className="size-5" />
+          </span>
+          <div>
+            <h3 className="text-[15px] font-semibold text-foreground">Buyers</h3>
+            <p className="mt-1 max-w-[26ch] text-[13px] leading-relaxed text-muted-foreground">
+              Sign up right from the WiMakit mobile app — browse, message,
+              and order on the go.
+            </p>
+          </div>
+          <div className="mt-1">
+            <AppStoreBadge />
+          </div>
         </div>
       </div>
     </section>
@@ -477,6 +576,9 @@ function SiteFooter() {
           <Link href="/sign-up" className="hover:text-foreground transition-colors">
             Register
           </Link>
+          <a href="#get-the-app" className="hover:text-foreground transition-colors">
+            Get the App
+          </a>
           <span className="text-border">·</span>
           <span>Western Area Rural, Sierra Leone</span>
         </div>
