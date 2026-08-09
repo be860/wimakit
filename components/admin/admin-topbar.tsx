@@ -100,12 +100,10 @@ export function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }
             }
           />
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center justify-between">
-                Notifications
-                <Badge variant="secondary">{unread} new</Badge>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
+            <DropdownMenuLabel className="flex items-center justify-between">
+              Notifications
+              <Badge variant="secondary">{unread} new</Badge>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {notifications.length === 0 ? (
