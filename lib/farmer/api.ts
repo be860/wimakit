@@ -19,6 +19,39 @@ export interface FarmerProduce {
   createdAt: string
 }
 
+export interface FarmerProfile {
+  id: number
+  firstName: string
+  lastName: string
+  fullName: string
+  email: string
+  phone?: string
+  role: string
+  nin?: string
+  idDocumentType?: string
+  idDocumentFrontUrl?: string
+  idDocumentBackUrl?: string
+  profilePhotoUrl?: string
+  farmPhotoUrl?: string
+  district?: string
+  chiefdom?: string
+  community?: string
+  farmName?: string
+  farmAddress?: string
+  primaryCrops?: string
+  farmSize?: string
+  farmingExperience?: string
+  farmDescription?: string
+  trustScore?: number
+  verificationStatus?: string
+  status?: string
+  notifyNewOrders?: boolean
+  notifyListingApprovals?: boolean
+  notifyMessages?: boolean
+  notifyBroadcasts?: boolean
+  createdAt?: string
+}
+
 export interface FarmerOrder {
   id: number
   orderNumber: string
@@ -206,6 +239,18 @@ export const farmerApi = {
 
   updateProfile: (data: Partial<FarmerProfile>) =>
     apiClient.put<FarmerProfile>('/api/user/profile', data),
+
+  uploadProfilePhoto: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiClient.post<FarmerProfile>('/api/user/profile-photo', fd)
+  },
+
+  uploadFarmPhoto: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiClient.post<FarmerProfile>('/api/user/farm-photo', fd)
+  },
 }
 
 export function LE(amount: number) {

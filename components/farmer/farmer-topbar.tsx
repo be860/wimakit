@@ -7,7 +7,7 @@ import { Bell, ChevronDown, LogOut, Search, Settings, UserCog, X } from 'lucide-
 import { useAuth } from '@/components/providers/auth-provider'
 import { farmerApi, type FarmerNotification } from '@/lib/farmer/api'
 import { cn } from '@/lib/utils'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -166,6 +166,9 @@ export function FarmerTopbar() {
             render={
               <Button variant="ghost" className="h-9 gap-2 pr-2 pl-1.5">
                 <Avatar className="size-6.5">
+                  {user?.profilePhotoUrl && (
+                    <AvatarImage src={user.profilePhotoUrl} alt={user?.fullName || 'Farmer'} />
+                  )}
                   <AvatarFallback className="bg-farmer text-[11px] text-background">
                     {initials}
                   </AvatarFallback>

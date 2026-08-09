@@ -118,6 +118,15 @@ namespace WiMakit.API.Models
 
         public bool MustChangePassword { get; set; } = false;
 
+        // Notification preferences
+        public bool NotifyNewOrders { get; set; } = true;
+
+        public bool NotifyListingApprovals { get; set; } = true;
+
+        public bool NotifyMessages { get; set; } = true;
+
+        public bool NotifyBroadcasts { get; set; } = false;
+
         public string? EmailVerificationToken { get; set; }
 
         public DateTime? EmailVerificationExpiry { get; set; }

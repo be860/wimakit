@@ -13,12 +13,29 @@ export interface UserSession {
   phone?: string;
   location?: string;
   district?: string;
+  chiefdom?: string;
+  community?: string;
+  nin?: string;
+  idDocumentType?: string;
+  idDocumentFrontUrl?: string;
+  idDocumentBackUrl?: string;
+  profilePhotoUrl?: string;
+  farmPhotoUrl?: string;
   farmName?: string;
+  farmAddress?: string;
+  farmSize?: string;
+  farmingExperience?: string;
+  primaryCrops?: string;
+  farmDescription?: string;
   businessName?: string;
-  verificationStatus?: string;
   status?: string;
+  verificationStatus?: string;
   isEmailVerified: boolean;
-  profilePhotoUrl?: string | null;
+  notifyNewOrders?: boolean;
+  notifyListingApprovals?: boolean;
+  notifyMessages?: boolean;
+  notifyBroadcasts?: boolean;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -54,6 +71,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Re-sync the cached session with the server once we have a token, so fields
+  // that can change server-side after login (e.g. verification status, photos,
+  // farm details) don't stay stuck on a stale localStorage snapshot.
+  React.useEffect(() => {
+    if (token) {
+      apiClient
+        .get<UserSession>('/api/user/profile')
+        .then((profile) => {
+          setUser(profile);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('user', JSON.stringify(profile));
+          }
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const login = async (email: string, password: string): Promise<UserSession> => {
     const data = await apiClient.post<any>('/api/auth/login', { email, password });

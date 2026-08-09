@@ -13,11 +13,13 @@ namespace WiMakit.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IConfiguration _configuration;
 
-        public UserController(IUserService userService, IFileStorageService fileStorageService)
+        public UserController(IUserService userService, IFileStorageService fileStorageService, IConfiguration configuration)
         {
             _userService = userService;
             _fileStorageService = fileStorageService;
+            _configuration = configuration;
         }
 
         [HttpGet("profile")]
@@ -62,6 +64,33 @@ namespace WiMakit.API.Controllers
             if (updated == null) return NotFound(new { message = "User profile not found." });
 
             return Ok(updated);
+        }
+
+        [HttpPost("profile-photo")]
+
+        [HttpPost("farm-photo")]
+        [Authorize(Policy = "RequireFarmer")]
+        public async Task<IActionResult> UploadFarmPhoto(IFormFile file)
+        {
+            var url = await UploadPhotoAsync(file, _configuration["Supabase:FarmPhotosBucket"] ?? "farm-photos");
+            if (url == null) return BadRequest(new { message = "Please upload a valid JPG, PNG, or WebP image under 5MB." });
+
+            var userId = GetCurrentUserId();
+            var updated = await _userService.UpdateFarmPhotoAsync(userId, url);
+            if (updated == null) return NotFound(new { message = "User profile not found." });
+            return Ok(updated);
+        }
+
+        private async Task<string?> UploadPhotoAsync(IFormFile file, string bucket)
+        {
+            if (file == null || file.Length == 0) return null;
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension)) return null;
+            if (file.Length > 5 * 1024 * 1024) return null;
+
+            return await _fileStorageService.UploadImageAsync(file, bucket);
         }
 
         private int GetCurrentUserId()

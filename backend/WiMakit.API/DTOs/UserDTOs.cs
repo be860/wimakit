@@ -9,6 +9,7 @@ namespace WiMakit.API.DTOs
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string? ProfilePhotoUrl { get; set; }
+        public string? FarmPhotoUrl { get; set; }
         public string? Phone { get; set; }
         public string? Location { get; set; }
         public string? Nin { get; set; }
@@ -30,6 +31,11 @@ namespace WiMakit.API.DTOs
         public string VerificationStatus { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public bool IsEmailVerified { get; set; }
+         public bool NotifyNewOrders { get; set; }
+        public bool NotifyListingApprovals { get; set; }
+        public bool NotifyMessages { get; set; }
+        public bool NotifyBroadcasts { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
     public class UpdateUserProfileRequest
@@ -50,5 +56,9 @@ namespace WiMakit.API.DTOs
         public string? FarmDescription { get; set; }
         public string? BusinessName { get; set; }
         public string? BusinessType { get; set; }
+         public bool? NotifyNewOrders { get; set; }
+        public bool? NotifyListingApprovals { get; set; }
+        public bool? NotifyMessages { get; set; }
+        public bool? NotifyBroadcasts { get; set; }
     }
 }
