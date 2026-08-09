@@ -65,10 +65,13 @@ export interface ProductAdmin {
   farmer: string
   farmerId: number
   category: string
+  description?: string
   unit: string
   price: number
   stock: number
+  location?: string
   district?: string
+  imageUrl?: string
   status: string
   submitted: string
 }
@@ -142,6 +145,8 @@ export const adminApi = {
     return apiClient.get<ProductAdmin[]>(`/api/admin/products?${qs}`)
   },
 
+  getProductById: (id: number) => apiClient.get<ProductAdmin>(`/api/admin/products/${id}`),
+
   updateProductStatus: (id: number, status: string, note?: string) =>
     apiClient.put(`/api/admin/products/${id}/status`, { status, note }),
 
@@ -176,6 +181,12 @@ export const adminApi = {
   ) => apiClient.put<ProductAdmin>(`/api/admin/products/${id}`, data),
 
   deleteProduct: (id: number) => apiClient.delete(`/api/admin/products/${id}`),
+
+  uploadProductImage: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return apiClient.post<{ imageUrl: string }>('/api/upload', form)
+  },
 
   getFraudCases: (params?: { status?: string }) => {
     const qs = new URLSearchParams()

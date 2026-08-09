@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, ImagePlus, PackagePlus, Pencil, Search, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
@@ -53,11 +55,11 @@ const FILTERS = ['All', 'Live', 'Pending', 'Hidden', 'Rejected']
 
 export function ProductsView({ openNew }: { openNew?: boolean }) {
   const { user } = useAuth()
+  const router = useRouter()
   const [rows, setRows] = React.useState<FarmerProduce[]>([])
   const [query, setQuery] = React.useState('')
   const [filter, setFilter] = React.useState<string>('All')
   const [addOpen, setAddOpen] = React.useState(Boolean(openNew))
-  const [detail, setDetail] = React.useState<FarmerProduce | null>(null)
   const [editTarget, setEditTarget] = React.useState<FarmerProduce | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<FarmerProduce | null>(null)
   const [deleting, setDeleting] = React.useState(false)
@@ -89,6 +91,7 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
     price: string
     quantity: string
     description: string
+    imageUrl: string | null
   }) {
     try {
       const created = await farmerApi.createProduce({
@@ -98,11 +101,12 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
         unit: 'per kg',
         quantity: Number(form.quantity || 0),
         description: form.description,
+        imageUrl: form.imageUrl || undefined,
       })
       if (created) {
         setRows((prev) => [created, ...prev])
         setAddOpen(false)
-        setDetail(created)
+        router.push(`/farmer/products/${created.id}`)
       }
     } catch {
       // Ignore error
@@ -117,6 +121,7 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
       price: string
       quantity: string
       description: string
+      imageUrl: string | null
     },
   ) {
     try {
@@ -126,6 +131,7 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
         price: Number(form.price || 0),
         quantity: Number(form.quantity || 0),
         description: form.description,
+        imageUrl: form.imageUrl ?? '',
       })
       if (updated) {
         setRows((prev) => prev.map((p) => (p.id === id ? updated : p)))
@@ -143,7 +149,6 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
       await farmerApi.deleteProduce(deleteTarget.id)
       setRows((prev) => prev.filter((p) => p.id !== deleteTarget.id))
       setDeleteTarget(null)
-      setDetail(null)
     } catch {
       // Keep dialog open so the farmer can retry
     } finally {
@@ -223,14 +228,35 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
                 return (
                   <TableRow
                     key={p.id}
-                    onClick={() => setDetail(p)}
+                    onClick={() => router.push(`/farmer/products/${p.id}`)}
                     className="cursor-pointer"
                   >
                     <TableCell>
-                      <span className="block font-medium">{p.name}</span>
-                      <span className="tabular block text-xs text-muted-foreground">
-                        #{p.id}
-                      </span>
+                      <div className="flex items-center gap-2.5">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            className="size-8 shrink-0 rounded-md border border-border object-cover"
+                          />
+                        ) : (
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-secondary/50 text-[10px] text-muted-foreground">
+                            {p.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <Link
+                            href={`/farmer/products/${p.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium hover:underline"
+                          >
+                            {p.name}
+                          </Link>
+                          <span className="tabular block text-xs text-muted-foreground">
+                            #{p.id}
+                          </span>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {p.category}
@@ -299,26 +325,103 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         onConfirm={handleDelete}
       />
-      <ProductDetailDialog
-        product={detail}
-        onOpenChange={(open) => !open && setDetail(null)}
-        onEdit={(p) => {
-          setDetail(null)
-          setEditTarget(p)
-        }}
-        onDelete={(p) => {
-          setDetail(null)
-          setDeleteTarget(p)
-        }}
-      />
     </>
   )
 }
 
 
+/* ---------------------------- image field ----------------------------------- */
+
+function ProductImageField({
+  imageUrl,
+  onChange,
+}: {
+  imageUrl: string | null
+  onChange: (url: string | null) => void
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      const res = await farmerApi.uploadProduceImage(file)
+      onChange(res.imageUrl)
+    } catch {
+      setError('Could not upload image. Please try again.')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="p-photo">Product photo</FieldLabel>
+      <input
+        ref={inputRef}
+        id="p-photo"
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        className="hidden"
+        onChange={handleFile}
+      />
+      {imageUrl ? (
+        <div className="flex items-center gap-3">
+          <img
+            src={imageUrl}
+            alt=""
+            className="size-16 shrink-0 rounded-md border border-border object-cover"
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading…' : 'Replace'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => onChange(null)}
+              disabled={uploading}
+            >
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          id="p-photo-trigger"
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-border bg-secondary/40 px-4 py-6 text-center text-sm text-muted-foreground transition-colors hover:bg-secondary"
+        >
+          <ImagePlus className="size-5" aria-hidden />
+          {uploading ? 'Uploading…' : 'Click to upload a photo'}
+        </button>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <FieldDescription>
+        A clear photo of the crop helps buyers trust your listing. JPG, PNG, GIF, or WEBP, up to 5MB.
+      </FieldDescription>
+    </Field>
+  )
+}
+
 /* ---------------------------- add product --------------------------------- */
 
-function AddProductDialog({
+export function AddProductDialog({
   open,
   onOpenChange,
   onCreate,
@@ -331,6 +434,7 @@ function AddProductDialog({
     price: string
     quantity: string
     description: string
+    imageUrl: string | null
   }) => void
 }) {
   const [name, setName] = React.useState('')
@@ -338,7 +442,7 @@ function AddProductDialog({
   const [price, setPrice] = React.useState('')
   const [quantity, setQuantity] = React.useState('')
   const [description, setDescription] = React.useState('')
-  const [photo, setPhoto] = React.useState(false)
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) {
@@ -346,7 +450,7 @@ function AddProductDialog({
       setPrice('')
       setQuantity('')
       setDescription('')
-      setPhoto(false)
+      setImageUrl(null)
     }
   }, [open])
 
@@ -364,7 +468,7 @@ function AddProductDialog({
           id="add-product-form"
           onSubmit={(e) => {
             e.preventDefault()
-            onCreate({ name, category, price, quantity, description })
+            onCreate({ name, category, price, quantity, description, imageUrl })
           }}
         >
           <FieldGroup>
@@ -434,26 +538,7 @@ function AddProductDialog({
               />
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="p-photo">Product photo</FieldLabel>
-              <button
-                id="p-photo"
-                type="button"
-                onClick={() => setPhoto(true)}
-                className={cn(
-                  'flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm transition-colors',
-                  photo
-                    ? 'border-farmer/40 bg-farmer/10 text-farmer'
-                    : 'bg-secondary/40 text-muted-foreground hover:bg-secondary',
-                )}
-              >
-                <ImagePlus className="size-5" aria-hidden />
-                {photo ? 'harvest-photo.jpg uploaded' : 'Click to upload a photo'}
-              </button>
-              <FieldDescription>
-                A clear photo of the crop helps buyers trust your listing.
-              </FieldDescription>
-            </Field>
+            <ProductImageField imageUrl={imageUrl} onChange={setImageUrl} />
           </FieldGroup>
         </form>
 
@@ -476,7 +561,7 @@ function AddProductDialog({
 
 /* --------------------------- edit product ---------------------------------- */
 
-function EditProductDialog({
+export function EditProductDialog({
   product,
   onOpenChange,
   onSave,
@@ -491,6 +576,7 @@ function EditProductDialog({
       price: string
       quantity: string
       description: string
+      imageUrl: string | null
     },
   ) => void
 }) {
@@ -499,6 +585,7 @@ function EditProductDialog({
   const [price, setPrice] = React.useState('')
   const [quantity, setQuantity] = React.useState('')
   const [description, setDescription] = React.useState('')
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (product) {
@@ -507,6 +594,7 @@ function EditProductDialog({
       setPrice(String(product.price))
       setQuantity(String(product.quantity))
       setDescription(product.description || '')
+      setImageUrl(product.imageUrl || null)
     }
   }, [product])
 
@@ -528,7 +616,7 @@ function EditProductDialog({
               id="edit-product-form"
               onSubmit={(e) => {
                 e.preventDefault()
-                onSave(product.id, { name, category, price, quantity, description })
+                onSave(product.id, { name, category, price, quantity, description, imageUrl })
               }}
             >
               <FieldGroup>
@@ -590,6 +678,8 @@ function EditProductDialog({
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </Field>
+
+                <ProductImageField imageUrl={imageUrl} onChange={setImageUrl} />
               </FieldGroup>
             </form>
 
@@ -614,7 +704,7 @@ function EditProductDialog({
 
 /* -------------------------- delete product ---------------------------------- */
 
-function DeleteProductDialog({
+export function DeleteProductDialog({
   product,
   deleting,
   onOpenChange,
@@ -642,88 +732,6 @@ function DeleteProductDialog({
               </Button>
               <Button variant="destructive" onClick={onConfirm} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete product'}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-/* --------------------------- product detail -------------------------------- */
-
-function ProductDetailDialog({
-  product,
-  onOpenChange,
-  onEdit,
-  onDelete,
-}: {
-  product: FarmerProduce | null
-  onOpenChange: (open: boolean) => void
-  onEdit: (product: FarmerProduce) => void
-  onDelete: (product: FarmerProduce) => void
-}) {
-  return (
-    <Dialog open={Boolean(product)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        {product && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="font-display">{product.name}</DialogTitle>
-              <DialogDescription className="tabular">
-                #{product.id} · submitted {new Date(product.createdAt).toLocaleDateString()}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <StatusBadge status={product.status as any} />
-                {product.quantity <= 10 && (
-                  <span className="flex items-center gap-1 text-xs text-destructive">
-                    <AlertTriangle className="size-3.5" aria-hidden />
-                    Low stock
-                  </span>
-                )}
-              </div>
-
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
-                {[
-                  ['Category', product.category],
-                  ['Price', `${LE(product.price)} ${product.unit}`],
-                  ['Stock', String(product.quantity)],
-                  ['Location', product.location || 'Freetown'],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex flex-col gap-0.5">
-                    <dt className="text-xs text-muted-foreground">{k}</dt>
-                    <dd className="tabular">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Description
-                </p>
-                <p className="text-sm leading-relaxed">{product.description || 'No description provided.'}</p>
-              </div>
-            </div>
-
-            <DialogFooter showCloseButton>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => onDelete(product)}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-              <Button
-                className="bg-farmer text-background hover:bg-farmer/90"
-                onClick={() => onEdit(product)}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit
               </Button>
             </DialogFooter>
           </>

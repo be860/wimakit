@@ -105,10 +105,13 @@ namespace WiMakit.API.DTOs
         public string Farmer { get; set; } = string.Empty;
         public int FarmerId { get; set; }
         public string Category { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public int Stock { get; set; }
+        public string? Location { get; set; }
         public string? District { get; set; }
+        public string? ImageUrl { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime Submitted { get; set; }
     }

@@ -190,14 +190,14 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireFarmer", policy =>
         policy.RequireAssertion(ctx => ctx.User.HasAnyRole("farmer")));
 
+    options.AddPolicy("RequireFarmerOrAdmin", policy =>
+        policy.RequireAssertion(ctx => ctx.User.HasAnyRole("farmer", "admin", "superadmin")));
+
     options.AddPolicy("RequireAdmin", policy =>
         policy.RequireAssertion(ctx => ctx.User.HasAnyRole("admin", "superadmin")));
 
     options.AddPolicy("RequireSuperAdmin", policy =>
         policy.RequireAssertion(ctx => ctx.User.HasAnyRole("superadmin")));
-
-        options.AddPolicy("RequireFarmerOrAdmin", policy =>
-    policy.RequireAssertion(ctx => ctx.User.HasAnyRole("farmer", "admin", "superadmin")));
 });
 
 // ── Swagger ───────────────────────────────────────────────────────────────────

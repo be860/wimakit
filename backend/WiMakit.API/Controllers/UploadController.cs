@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WiMakit.API.Extensions;
 using WiMakit.API.Services;
 
 namespace WiMakit.API.Controllers
@@ -16,11 +17,24 @@ namespace WiMakit.API.Controllers
             _fileStorageService = fileStorageService;
         }
 
+        // Both farmers (uploading their own produce photos) and admins (adding/editing
+        // listings on a farmer's behalf) can use this endpoint. We only require verified
+        // email for farmers — admins are already vetted through their own onboarding.
         [Authorize(Policy = "RequireFarmerOrAdmin")]
-        [Authorize(Policy = "VerifiedEmail")]
         [HttpPost]
         public async Task<ActionResult<object>> UploadImage(IFormFile file)
         {
+            var isFarmer = User.HasAnyRole("farmer");
+            var isAdmin = User.HasAnyRole("admin", "superadmin");
+            if (isFarmer && !isAdmin)
+            {
+                var emailVerified = User.HasClaim(c => c.Type == "email_verified" && c.Value == "true");
+                if (!emailVerified)
+                {
+                    return Forbid();
+                }
+            }
+
             if (file == null || file.Length == 0)
             {
                 return BadRequest(new { message = "No file uploaded" });

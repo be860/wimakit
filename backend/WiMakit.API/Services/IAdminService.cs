@@ -11,6 +11,7 @@ namespace WiMakit.API.Services
         Task<IEnumerable<BuyerAdminDTO>> GetBuyersAsync(string? status, string? search);
         Task<bool> UpdateBuyerStatusAsync(int id, string status, int adminId, string adminName);
         Task<IEnumerable<ProductAdminDTO>> GetProductsAsync(string? status, string? search);
+        Task<ProductAdminDTO?> GetProductByIdAsync(int id);
         Task<bool> UpdateProductStatusAsync(int id, string status, string? note, int adminId, string adminName);
         Task<ProductAdminDTO> CreateProductAsync(CreateProductAdminRequest request, int adminId, string adminName);
         Task<ProductAdminDTO?> UpdateProductAsync(int id, UpdateProductAdminRequest request, int adminId, string adminName);

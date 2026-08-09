@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Check, EyeOff, Loader2, PackagePlus, Pencil, Search, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { Check, EyeOff, ImagePlus, Loader2, PackagePlus, Pencil, Search, Trash2 } from 'lucide-react'
 
 import { adminApi, ProductAdmin, FarmerAdmin, LE } from '@/lib/admin/api'
 import { cn } from '@/lib/utils'
@@ -14,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   InputGroup,
@@ -283,10 +284,27 @@ export function ProductCatalog() {
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <span className="block font-medium">{p.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        #{p.id} · {p.farmer}
-                      </span>
+                      <div className="flex items-center gap-2.5">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            className="size-8 shrink-0 rounded-md border border-border object-cover"
+                          />
+                        ) : (
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-secondary/50 text-[10px] text-muted-foreground">
+                            {p.name.charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <Link href={`/admin/products/${p.id}`} className="font-medium hover:underline">
+                            {p.name}
+                          </Link>
+                          <span className="block text-xs text-muted-foreground">
+                            #{p.id} · {p.farmer}
+                          </span>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {p.category}
@@ -376,6 +394,7 @@ function AddProductDialog({
   const [unit, setUnit] = React.useState('per kg')
   const [district, setDistrict] = React.useState('')
   const [description, setDescription] = React.useState('')
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState('Live')
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -390,6 +409,7 @@ function AddProductDialog({
       setUnit('per kg')
       setDistrict('')
       setDescription('')
+      setImageUrl(null)
       setStatus('Live')
       setFarmerId('')
       setError(null)
@@ -414,6 +434,7 @@ function AddProductDialog({
         unit,
         quantity: Number(quantity || 0),
         district: district || undefined,
+        imageUrl: imageUrl || undefined,
         status,
       })
       if (created) onCreated(created)
@@ -527,6 +548,8 @@ function AddProductDialog({
               />
             </Field>
 
+            <AdminProductImageField imageUrl={imageUrl} onChange={setImageUrl} fieldId="ap-photo" />
+
             <Field>
               <FieldLabel htmlFor="ap-status">Publish status</FieldLabel>
               <Select value={status} onValueChange={(v) => setStatus(v as string)}>
@@ -559,7 +582,7 @@ function AddProductDialog({
 
 /* --------------------------- edit product ---------------------------------- */
 
-function EditProductDialog({
+export function EditProductDialog({
   product,
   onOpenChange,
   onUpdated,
@@ -573,6 +596,8 @@ function EditProductDialog({
   const [price, setPrice] = React.useState('')
   const [stock, setStock] = React.useState('')
   const [district, setDistrict] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -584,6 +609,8 @@ function EditProductDialog({
       setPrice(String(product.price))
       setStock(String(product.stock))
       setDistrict(product.district ?? '')
+      setDescription(product.description ?? '')
+      setImageUrl(product.imageUrl ?? null)
       setStatus(product.status)
       setError(null)
     }
@@ -598,9 +625,11 @@ function EditProductDialog({
       const updated = await adminApi.updateProduct(product.id, {
         name,
         category,
+        description,
         price: Number(price || 0),
         quantity: Number(stock || 0),
         district: district || undefined,
+        imageUrl: imageUrl ?? '',
         status,
       })
       if (updated) onUpdated(updated)
@@ -674,6 +703,18 @@ function EditProductDialog({
                 </div>
 
                 <Field>
+                  <FieldLabel htmlFor="ep-desc">Description</FieldLabel>
+                  <Textarea
+                    id="ep-desc"
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </Field>
+
+                <AdminProductImageField imageUrl={imageUrl} onChange={setImageUrl} fieldId="ep-photo" />
+
+                <Field>
                   <FieldLabel htmlFor="ep-status">Status</FieldLabel>
                   <Select value={status} onValueChange={(v) => setStatus(v as string)}>
                     <SelectTrigger id="ep-status">
@@ -710,7 +751,7 @@ function EditProductDialog({
 
 /* --------------------------- delete product -------------------------------- */
 
-function DeleteProductDialog({
+export function DeleteProductDialog({
   product,
   deleting,
   onOpenChange,
@@ -744,5 +785,95 @@ function DeleteProductDialog({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ---------------------------- image field ----------------------------------- */
+
+function AdminProductImageField({
+  imageUrl,
+  onChange,
+  fieldId,
+}: {
+  imageUrl: string | null
+  onChange: (url: string | null) => void
+  fieldId: string
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      const res = await adminApi.uploadProductImage(file)
+      onChange(res.imageUrl)
+    } catch {
+      setError('Could not upload image. Please try again.')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor={fieldId}>Product photo</FieldLabel>
+      <input
+        ref={inputRef}
+        id={fieldId}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        className="hidden"
+        onChange={handleFile}
+      />
+      {imageUrl ? (
+        <div className="flex items-center gap-3">
+          <img
+            src={imageUrl}
+            alt=""
+            className="size-16 shrink-0 rounded-md border border-border object-cover"
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading…' : 'Replace'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => onChange(null)}
+              disabled={uploading}
+            >
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="flex w-full flex-col items-center gap-1.5 rounded-lg border border-dashed border-border bg-secondary/40 px-4 py-6 text-center text-sm text-muted-foreground transition-colors hover:bg-secondary"
+        >
+          <ImagePlus className="size-5" aria-hidden />
+          {uploading ? 'Uploading…' : 'Click to upload a photo'}
+        </button>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <FieldDescription>
+        JPG, PNG, GIF, or WEBP, up to 5MB.
+      </FieldDescription>
+    </Field>
   )
 }

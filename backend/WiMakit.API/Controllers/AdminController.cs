@@ -77,6 +77,14 @@ namespace WiMakit.API.Controllers
             return Ok(products);
         }
 
+        [HttpGet("products/{id:int}")]
+        public async Task<IActionResult> GetProductById(int id)
+        {
+            var product = await _adminService.GetProductByIdAsync(id);
+            if (product == null) return NotFound(new { message = "Product not found." });
+            return Ok(product);
+        }
+
         [HttpPut("products/{id:int}/status")]
         public async Task<IActionResult> UpdateProductStatus(int id, [FromBody] UpdateProductStatusRequest request)
         {
@@ -95,7 +103,7 @@ namespace WiMakit.API.Controllers
             var adminName = GetCurrentUserName();
 
             var product = await _adminService.CreateProductAsync(request, adminId, adminName);
-            return CreatedAtAction(nameof(GetProducts), new { }, product);
+            return CreatedAtAction(nameof(GetProductById), new { id = product.Id }, product);
         }
 
         [HttpPut("products/{id:int}")]

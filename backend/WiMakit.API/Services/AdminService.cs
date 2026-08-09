@@ -369,13 +369,44 @@ namespace WiMakit.API.Services
                 Farmer = p.Farmer != null ? p.Farmer.FullName : "Unknown",
                 FarmerId = p.FarmerId,
                 Category = p.Category,
+                Description = p.Description,
                 Unit = p.Unit,
                 Price = p.Price,
-                Stock = p.Stock,
+                Stock = p.Quantity,
+                Location = p.Location,
                 District = p.District ?? p.Location,
+                ImageUrl = p.ImageUrl,
                 Status = p.Status,
                 Submitted = p.CreatedAt
             });
+        }
+
+        public async Task<ProductAdminDTO?> GetProductByIdAsync(int id)
+        {
+            var p = await _context.Produces
+                .Include(x => x.Farmer)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (p == null) return null;
+
+            return new ProductAdminDTO
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Farmer = p.Farmer != null ? p.Farmer.FullName : "Unknown",
+                FarmerId = p.FarmerId,
+                Category = p.Category,
+                Description = p.Description,
+                Unit = p.Unit,
+                Price = p.Price,
+                Stock = p.Quantity,
+                Location = p.Location,
+                District = p.District ?? p.Location,
+                ImageUrl = p.ImageUrl,
+                Status = p.Status,
+                Submitted = p.CreatedAt
+            };
         }
 
         public async Task<bool> UpdateProductStatusAsync(int id, string status, string? note, int adminId, string adminName)
@@ -443,10 +474,13 @@ namespace WiMakit.API.Services
                 Farmer = product.Farmer != null ? product.Farmer.FullName : "Unknown",
                 FarmerId = product.FarmerId,
                 Category = product.Category,
+                Description = product.Description,
                 Unit = product.Unit,
                 Price = product.Price,
-                Stock = product.Stock,
+                Stock = product.Quantity,
+                Location = product.Location,
                 District = product.District ?? product.Location,
+                ImageUrl = product.ImageUrl,
                 Status = product.Status,
                 Submitted = product.CreatedAt
             };
@@ -493,10 +527,13 @@ namespace WiMakit.API.Services
                 Farmer = product.Farmer != null ? product.Farmer.FullName : "Unknown",
                 FarmerId = product.FarmerId,
                 Category = product.Category,
+                Description = product.Description,
                 Unit = product.Unit,
                 Price = product.Price,
-                Stock = product.Stock,
+                Stock = product.Quantity,
+                Location = product.Location,
                 District = product.District ?? product.Location,
+                ImageUrl = product.ImageUrl,
                 Status = product.Status,
                 Submitted = product.CreatedAt
             };
