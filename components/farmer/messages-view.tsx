@@ -23,7 +23,7 @@ export function MessagesView() {
       .then((data) => {
         setConversations(data || [])
         if (data && data.length > 0) {
-          setActiveUserId(data[0].otherUserId)
+          setActiveUserId(data[0].userId)
         }
       })
       .catch(() => setConversations([]))
@@ -33,11 +33,22 @@ export function MessagesView() {
     if (!activeUserId) return
     farmerApi
       .getConversation(activeUserId)
-      .then((data) => setMessages(data || []))
+      .then((data) => {
+        setMessages(data || [])
+        // Mark any unread messages from this other user as read, and clear
+        // the unread badge for this conversation in the sidebar.
+        const unread = (data || []).filter((m) => !m.isRead && m.senderId === activeUserId)
+        unread.forEach((m) => {
+          farmerApi.markMessageRead(m.id).catch(() => {})
+        })
+        setConversations((prev) =>
+          prev.map((c) => (c.userId === activeUserId ? { ...c, unreadCount: 0 } : c)),
+        )
+      })
       .catch(() => setMessages([]))
   }, [activeUserId])
 
-  const activeConv = conversations.find((c) => c.otherUserId === activeUserId) || conversations[0]
+  const activeConv = conversations.find((c) => c.userId === activeUserId) || conversations[0]
 
   async function handleSend() {
     const text = draft.trim()
@@ -56,9 +67,9 @@ export function MessagesView() {
             senderId: 0,
             senderName: 'Me',
             receiverId: activeUserId,
-            receiverName: activeConv?.otherUserName || 'User',
+            receiverName: activeConv?.userName || 'User',
             content: text,
-            sentAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             isRead: false,
           },
         ])
@@ -95,8 +106,8 @@ export function MessagesView() {
             </div>
           ) : (
             conversations.map((c) => {
-              const initials = c.otherUserName
-                ? c.otherUserName
+              const initials = c.userName
+                ? c.userName
                     .split(' ')
                     .map((n) => n[0])
                     .join('')
@@ -105,12 +116,12 @@ export function MessagesView() {
                 : 'BY'
               return (
                 <button
-                  key={c.otherUserId}
+                  key={c.userId}
                   type="button"
-                  onClick={() => setActiveUserId(c.otherUserId)}
+                  onClick={() => setActiveUserId(c.userId)}
                   className={cn(
                     'flex w-full items-start gap-2.5 border-b border-border px-4 py-3 text-left transition-colors',
-                    c.otherUserId === activeUserId ? 'bg-farmer/8' : 'hover:bg-secondary/60',
+                    c.userId === activeUserId ? 'bg-farmer/8' : 'hover:bg-secondary/60',
                   )}
                 >
                   <Avatar className="size-8 shrink-0">
@@ -120,7 +131,7 @@ export function MessagesView() {
                   </Avatar>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium">{c.otherUserName}</span>
+                      <span className="truncate text-sm font-medium">{c.userName}</span>
                       <span className="shrink-0 text-[11px] text-muted-foreground">
                         {c.lastMessageTime ? new Date(c.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
@@ -129,7 +140,7 @@ export function MessagesView() {
                       {c.lastMessage || 'No messages yet'}
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground">{c.otherUserRole || 'Buyer'}</span>
+                      <span className="text-[11px] text-muted-foreground">{c.userRole || 'Buyer'}</span>
                       {(c.unreadCount || 0) > 0 && (
                         <span className="tabular rounded-full bg-farmer px-1.5 text-[10px] font-semibold text-background">
                           {c.unreadCount}
@@ -165,8 +176,8 @@ export function MessagesView() {
               </Button>
               <Avatar className="size-8">
                 <AvatarFallback className="bg-secondary text-[11px] text-muted-foreground">
-                  {activeConv.otherUserName
-                    ? activeConv.otherUserName
+                  {activeConv.userName
+                    ? activeConv.userName
                         .split(' ')
                         .map((n) => n[0])
                         .join('')
@@ -176,8 +187,8 @@ export function MessagesView() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium">{activeConv.otherUserName}</span>
-                <span className="text-[11px] text-muted-foreground">{activeConv.otherUserRole || 'Buyer'}</span>
+                <span className="truncate text-sm font-medium">{activeConv.userName}</span>
+                <span className="text-[11px] text-muted-foreground">{activeConv.userRole || 'Buyer'}</span>
               </div>
             </div>
 
@@ -188,7 +199,7 @@ export function MessagesView() {
                 </div>
               ) : (
                 messages.map((m) => {
-                  const fromMe = m.senderName !== activeConv.otherUserName
+                  const fromMe = m.senderName !== activeConv.userName
                   return (
                     <div
                       key={m.id}
@@ -210,7 +221,7 @@ export function MessagesView() {
                           fromMe && 'justify-end',
                         )}
                       >
-                        {new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         {fromMe &&
                           (m.isRead ? (
                             <CheckCheck className="size-3 text-farmer" aria-label="Read" />
@@ -243,7 +254,7 @@ export function MessagesView() {
                 <Input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder={`Message ${activeConv.otherUserName}…`}
+                  placeholder={`Message ${activeConv.userName}…`}
                   aria-label="Message"
                   disabled={loading}
                 />

@@ -6,6 +6,7 @@ export interface AdminMetrics {
   totalFarmers: number
   totalBuyers: number
   pendingFarmerApprovals: number
+  pendingBuyerApprovals: number
   pendingProductApprovals: number
   openFraudCases: number
   totalRevenue: number
@@ -54,6 +55,7 @@ export interface BuyerAdmin {
   district?: string
   phone?: string
   status: string
+  verified: boolean
   orders: number
   spend: number
   joined: string

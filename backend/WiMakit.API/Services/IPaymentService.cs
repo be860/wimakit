@@ -64,6 +64,7 @@ namespace WiMakit.API.Services
         public string BuyerInitials { get; set; } = string.Empty;
         public int FarmerId { get; set; }
         public string FarmerName { get; set; } = string.Empty;
+        public string? FarmerPhone { get; set; }
     }
 
     public class UpdateOrderStatusRequest

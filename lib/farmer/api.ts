@@ -75,12 +75,15 @@ export interface FarmerOrder {
 }
 
 export interface Conversation {
-  otherUserId: number
-  otherUserName: string
-  otherUserRole: string
+  userId: number
+  userName: string
+  userLocation?: string
+  userRole: string
   lastMessage: string
   lastMessageTime: string
   unreadCount: number
+  produceId?: number
+  produceName?: string
 }
 
 export interface Message {
@@ -89,8 +92,10 @@ export interface Message {
   senderName: string
   receiverId: number
   receiverName: string
+  produceId?: number
+  produceName?: string
   content: string
-  sentAt: string
+  createdAt: string
   isRead: boolean
 }
 

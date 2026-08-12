@@ -5,6 +5,7 @@ namespace WiMakit.API.DTOs
         public int TotalFarmers { get; set; }
         public int TotalBuyers { get; set; }
         public int PendingFarmerApprovals { get; set; }
+        public int PendingBuyerApprovals { get; set; }
         public int PendingProductApprovals { get; set; }
         public int OpenFraudCases { get; set; }
         public decimal TotalRevenue { get; set; }
@@ -87,7 +88,10 @@ namespace WiMakit.API.DTOs
         public string Type { get; set; } = string.Empty;
         public string? District { get; set; }
         public string? Phone { get; set; }
+        // Mirrors the farmer directory: this is the buyer's VerificationStatus
+        // ("Pending", "Approved", "Rejected", "Suspended"), not the raw Active/Suspended flag.
         public string Status { get; set; } = string.Empty;
+        public bool Verified { get; set; }
         public int Orders { get; set; }
         public decimal Spend { get; set; }
         public DateTime Joined { get; set; }
@@ -95,7 +99,7 @@ namespace WiMakit.API.DTOs
 
     public class UpdateBuyerStatusRequest
     {
-        public string Status { get; set; } = string.Empty; // "Active", "Suspended"
+        public string Status { get; set; } = string.Empty; // "Approved", "Rejected", "Suspended"
     }
 
     public class ProductAdminDTO

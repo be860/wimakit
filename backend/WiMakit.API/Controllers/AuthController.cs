@@ -52,6 +52,22 @@ namespace WiMakit.API.Controllers
             if (await _context.Users.AnyAsync(u => u.Email == normalizedEmail))
                 return BadRequest(new { message = "Email is already registered" });
 
+            // ── Buyer business details ───────────────────────────────────────
+            // The admin buyer directory (organization, type, district) and the buyer
+            // approval workflow both depend on these fields existing, so they're
+            // required at sign-up rather than being left null.
+            if (role == "buyer")
+            {
+                if (string.IsNullOrWhiteSpace(request.BusinessName))
+                    return BadRequest(new { message = "Business / organization name is required." });
+
+                if (string.IsNullOrWhiteSpace(request.BusinessType))
+                    return BadRequest(new { message = "Please select a business type." });
+
+                if (string.IsNullOrWhiteSpace(request.Location))
+                    return BadRequest(new { message = "District is required." });
+            }
+
             // ── Farmer ID verification ─────────────────────────────────────
             string? idDocFrontUrl = null;
             string? idDocBackUrl = null;
@@ -154,9 +170,11 @@ namespace WiMakit.API.Controllers
                 FarmPhotoUrl = farmPhotoUrl,
                 FarmSize = request.FarmSize,
                 FarmingExperience = request.FarmingExperience,
-                BusinessName = request.BusinessName,
-                BusinessType = request.BusinessType,
-                VerificationStatus = role == "farmer" ? "Pending" : "Approved",
+                BusinessName = request.BusinessName?.Trim(),
+                BusinessType = request.BusinessType?.Trim(),
+                // Both roles start out awaiting admin review — buyers used to be
+                // auto-approved, which meant they never showed up for admin vetting.
+                VerificationStatus = "Pending",
                 Status = "Active",
                 IsEmailVerified = false,
                 EmailVerificationToken = verificationToken,
@@ -364,8 +382,22 @@ namespace WiMakit.API.Controllers
         [EnableRateLimiting("auth-login")]
         public async Task<ActionResult<AuthResponse>> GoogleAuth(GoogleAuthRequest request)
         {
-            var googleClientId = _configuration["Google:ClientId"];
-            if (string.IsNullOrWhiteSpace(googleClientId))
+            // The mobile app requests an ID token using whichever OAuth client matches the
+            // platform it's running on (Web client for Expo Go / dev proxy, Android client
+            // for a native Android build, iOS client for a native iOS build). Each of those
+            // tokens carries a different "aud" claim, so every configured client ID must be
+            // accepted here or sign-in will fail depending on which build issued the token.
+            var googleClientIds = new[]
+            {
+                _configuration["Google:ClientId"],
+                _configuration["Google:AndroidClientId"],
+                _configuration["Google:IosClientId"]
+            }
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .ToArray();
+
+            if (googleClientIds.Length == 0)
                 return StatusCode(503, new { message = "Google sign-in is not configured." });
 
             GoogleJsonWebSignature.Payload payload;
@@ -374,7 +406,7 @@ namespace WiMakit.API.Controllers
             {
                 var settings = new GoogleJsonWebSignature.ValidationSettings
                 {
-                    Audience = new[] { googleClientId }
+                    Audience = googleClientIds
                 };
                 payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
             }
@@ -413,7 +445,7 @@ namespace WiMakit.API.Controllers
                     Phone = request.Phone,
                     Location = request.Location,
                     District = request.Location,
-                    VerificationStatus = role == "farmer" ? "Pending" : "Approved",
+                    VerificationStatus = "Pending",
                     Status = "Active",
                     IsEmailVerified = true,
                 };

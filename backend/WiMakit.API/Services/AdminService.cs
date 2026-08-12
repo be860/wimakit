@@ -27,6 +27,7 @@ namespace WiMakit.API.Services
             var totalBuyers = await _context.Users.CountAsync(u => u.Role.ToLower() == "buyer");
 
             var pendingFarmers = await _context.Users.CountAsync(u => u.Role.ToLower() == "farmer" && (string.IsNullOrEmpty(u.VerificationStatus) || u.VerificationStatus.ToLower() == "pending"));
+            var pendingBuyers = await _context.Users.CountAsync(u => u.Role.ToLower() == "buyer" && (string.IsNullOrEmpty(u.VerificationStatus) || u.VerificationStatus.ToLower() == "pending"));
             var pendingProducts = await _context.Produces.CountAsync(p => p.Status == "Pending");
             var openFraudCases = await _context.FraudCases.CountAsync(f => f.Status == "Open" || f.Status == "Under Review");
 
@@ -104,6 +105,7 @@ namespace WiMakit.API.Services
                 TotalFarmers = totalFarmers,
                 TotalBuyers = totalBuyers,
                 PendingFarmerApprovals = pendingFarmers,
+                PendingBuyerApprovals = pendingBuyers,
                 PendingProductApprovals = pendingProducts,
                 OpenFraudCases = openFraudCases,
                 TotalRevenue = totalRevenue,
@@ -277,7 +279,14 @@ namespace WiMakit.API.Services
             if (!string.IsNullOrWhiteSpace(status))
             {
                 var s = status.Trim().ToLowerInvariant();
-                query = query.Where(u => u.Status.ToLower() == s);
+                if (s == "pending")
+                {
+                    query = query.Where(u => string.IsNullOrEmpty(u.VerificationStatus) || u.VerificationStatus.ToLower() == "pending");
+                }
+                else
+                {
+                    query = query.Where(u => u.VerificationStatus.ToLower() == s || u.Status.ToLower() == s);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -311,7 +320,8 @@ namespace WiMakit.API.Services
                     Type = b.BusinessType ?? "Retailer",
                     District = b.District ?? b.Location,
                     Phone = b.Phone,
-                    Status = b.Status,
+                    Status = !string.IsNullOrEmpty(b.VerificationStatus) ? b.VerificationStatus : "Pending",
+                    Verified = string.Equals(b.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase),
                     Orders = stats?.OrdersCount ?? 0,
                     Spend = stats?.Spend ?? 0m,
                     Joined = b.CreatedAt
@@ -324,7 +334,19 @@ namespace WiMakit.API.Services
             var buyer = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == "buyer");
             if (buyer == null) return false;
 
-            buyer.Status = status;
+            buyer.VerificationStatus = status;
+
+            if (status == "Suspended")
+            {
+                buyer.Status = "Suspended";
+            }
+            else if (status == "Approved")
+            {
+                buyer.Status = "Active";
+                buyer.ApprovedBy = adminName;
+                buyer.ApprovalDate = DateTime.UtcNow;
+            }
+
             buyer.UpdatedAt = DateTime.UtcNow;
 
             _context.AuditLogs.Add(new AuditLog

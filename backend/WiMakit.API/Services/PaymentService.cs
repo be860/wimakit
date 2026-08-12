@@ -162,7 +162,8 @@ namespace WiMakit.API.Services
                 BuyerName = buyerName,
                 BuyerInitials = GetInitials(buyerName),
                 FarmerId = o.FarmerId,
-                FarmerName = farmerName
+                FarmerName = farmerName,
+                FarmerPhone = o.Farmer?.Phone
             };
         }
 

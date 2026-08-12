@@ -81,7 +81,7 @@ export function StatCard({
   deltaLabel?: string
   icon: React.ComponentType<{ className?: string }>
   emphasis?: boolean
-  href?: string
+  href?: string | null 
   invertGood?: boolean
 }) {
   const body = (

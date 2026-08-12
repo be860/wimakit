@@ -125,6 +125,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IFraudService, FraudService>();
 builder.Services.AddHttpClient<IFileStorageService, SupabaseStorageService>();
 
 // ── Database (EF Core with Supabase PostgreSQL) ──────────────────────────────
