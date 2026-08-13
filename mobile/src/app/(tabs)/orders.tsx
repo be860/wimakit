@@ -22,6 +22,7 @@ import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { formatLE } from '../../services/produce-api';
 import { ordersApi, Order } from '../../services/orders-api';
 import { fraudApi, FraudCase } from '../../services/fraud-api';
+import { reviewsApi } from '../../services/reviews-api';
 import { useChat } from '../../context/chat-context';
 
 const MIN_REASON_LENGTH = 10;
@@ -45,6 +46,47 @@ export default function OrdersScreen() {
   const [reportReason, setReportReason] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+
+  // Review modal state
+  const [reviewModalOrder, setReviewModalOrder] = useState<Order | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const openReviewModal = (order: Order) => {
+    setReviewRating(5);
+    setReviewComment('');
+    setReviewError(null);
+    setReviewModalOrder(order);
+  };
+
+  const submitReview = async () => {
+    if (!reviewModalOrder) return;
+    if (!reviewComment.trim()) {
+      setReviewError('Please write a short comment about your purchase.');
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewError(null);
+
+    try {
+      await reviewsApi.createReview({
+        produceId: reviewModalOrder.produceId,
+        farmerId: reviewModalOrder.farmerId,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+
+      setSubmittingReview(false);
+      setReviewModalOrder(null);
+      Alert.alert('Review Submitted! ⭐', 'Thank you for rating your order.');
+    } catch (err: any) {
+      setSubmittingReview(false);
+      setReviewError(err?.data?.message || err?.message || 'Could not submit review.');
+    }
+  };
 
   const load = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (!opts.silent) setLoading(true);
@@ -154,12 +196,12 @@ export default function OrdersScreen() {
     setReportError(null);
 
     try {
-      const result = await fraudApi.report({ orderId: reportModalOrder.id, reason });
-      setReportedByOrder((prev) => ({ ...prev, [reportModalOrder.id]: result.fraudCase }));
+      const result = await fraudApi.reportFraud({ orderId: String(reportModalOrder.id), reason });
+      setReportedByOrder((prev) => ({ ...prev, [reportModalOrder.id]: result as any }));
       setReportModalOrder(null);
       Alert.alert(
         'Report Submitted',
-        `${result.message}\n\nCase Reference: ${result.fraudCase.caseNumber}`
+        `Your report for Order #${reportModalOrder.orderNumber} has been recorded.`
       );
     } catch (err: any) {
       setReportError(err?.data?.message || err?.message || 'Could not submit your report. Please try again.');
@@ -231,23 +273,34 @@ export default function OrdersScreen() {
           </TouchableOpacity>
         </View>
 
-        {existingReport ? (
-          <View style={styles.reportedPill}>
-            <Ionicons name="shield-checkmark-outline" size={14} color="#D97706" />
-            <Text style={styles.reportedPillText}>
-              Reported · {existingReport.status} ({existingReport.caseNumber})
-            </Text>
-          </View>
-        ) : (
+        <View style={styles.cardBottomRow}>
           <TouchableOpacity
-            style={styles.reportLink}
+            style={styles.reviewLink}
             activeOpacity={0.7}
-            onPress={() => openReportModal(item)}
+            onPress={() => openReviewModal(item)}
           >
-            <Ionicons name="flag-outline" size={14} color={COLORS.error} />
-            <Text style={styles.reportLinkText}>Report an Issue</Text>
+            <Ionicons name="star-outline" size={14} color="#F59E0B" />
+            <Text style={styles.reviewLinkText}>Rate & Review</Text>
           </TouchableOpacity>
-        )}
+
+          {existingReport ? (
+            <View style={styles.reportedPill}>
+              <Ionicons name="shield-checkmark-outline" size={14} color="#D97706" />
+              <Text style={styles.reportedPillText}>
+                Reported · {existingReport.status}
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.reportLink}
+              activeOpacity={0.7}
+              onPress={() => openReportModal(item)}
+            >
+              <Ionicons name="flag-outline" size={14} color={COLORS.error} />
+              <Text style={styles.reportLinkText}>Report Issue</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -382,6 +435,86 @@ export default function OrdersScreen() {
             )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Write Review Modal */}
+      <Modal
+        visible={!!reviewModalOrder}
+        animationType="slide"
+        transparent
+        onRequestClose={() => !submittingReview && setReviewModalOrder(null)}
+      >
+        <View style={styles.reviewModalOverlay}>
+          <View style={styles.reviewModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle} allowFontScaling={false}>
+                Rate & Review Purchase
+              </Text>
+              <TouchableOpacity
+                onPress={() => setReviewModalOrder(null)}
+                disabled={submittingReview}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={20} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+
+            {reviewModalOrder && (
+              <Text style={styles.reviewOrderSub} allowFontScaling={false}>
+                Order: {reviewModalOrder.orderNumber} · {reviewModalOrder.produceName}
+              </Text>
+            )}
+
+            {reviewError ? (
+              <View style={styles.errorAlert}>
+                <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+                <Text style={styles.errorAlertText}>{reviewError}</Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.starPrompt} allowFontScaling={false}>
+              Tap stars to rate seller
+            </Text>
+            <View style={styles.starPickerRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => setReviewRating(s)} hitSlop={4}>
+                  <Ionicons
+                    name={s <= reviewRating ? 'star' : 'star-outline'}
+                    size={32}
+                    color="#F59E0B"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.inputLabel} allowFontScaling={false}>
+              Your Review
+            </Text>
+            <TextInput
+              style={styles.reviewCommentInput}
+              placeholder="How was the produce quality and delivery experience?"
+              placeholderTextColor={COLORS.placeholderText}
+              multiline
+              numberOfLines={3}
+              value={reviewComment}
+              onChangeText={setReviewComment}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitReviewBtn, submittingReview && styles.btnDisabled]}
+              onPress={submitReview}
+              disabled={submittingReview}
+            >
+              {submittingReview ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.submitReviewBtnText} allowFontScaling={false}>
+                  Submit Review
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -747,6 +880,92 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontFamily: FONTS.bodyBold,
     fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F2',
+  },
+  reviewLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: RADIUS.pill,
+    backgroundColor: '#FEF3C7',
+  },
+  reviewLinkText: {
+    fontSize: 12,
+    fontFamily: FONTS.bodySemiBold,
+    color: '#D97706',
+  },
+  reviewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  reviewModalContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.card,
+    padding: 22,
+  },
+  reviewOrderSub: {
+    fontSize: 12.5,
+    fontFamily: FONTS.bodyMedium,
+    color: COLORS.textSecondary,
+    marginBottom: 12,
+  },
+  starPrompt: {
+    fontSize: 12,
+    fontFamily: FONTS.bodyMedium,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  starPickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12.5,
+    fontFamily: FONTS.bodySemiBold,
+    color: '#1A1A1A',
+    marginBottom: 6,
+  },
+  reviewCommentInput: {
+    backgroundColor: '#F4F6FA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 12,
+    height: 80,
+    fontSize: 13,
+    fontFamily: FONTS.bodyRegular,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  submitReviewBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.pill,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  submitReviewBtnText: {
+    fontSize: 14,
+    fontFamily: FONTS.bodyBold,
     color: '#FFFFFF',
   },
 });

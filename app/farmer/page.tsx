@@ -70,10 +70,20 @@ export default function FarmerDashboardPage() {
   const pendingOrders = sales.filter((s) => s.status === 'Pending').length
   const completedOrders = sales.filter((s) => s.status === 'Delivered').length
 
-  const avgRating =
+  const avgRatingNum =
     reviews.length > 0
-      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-      : '5.0'
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0
+
+  const avgRatingDisplay = reviews.length > 0 ? avgRatingNum.toFixed(1) : '5.0'
+
+  const baseScore = (user as any)?.trustScore || 85
+  const calculatedTrustScore = React.useMemo(() => {
+    if (reviews.length === 0) return baseScore
+    // Review score impact: boost score if average rating is high
+    const reviewBonus = Math.round((avgRatingNum - 3.5) * 6)
+    return Math.min(100, Math.max(50, baseScore + reviewBonus))
+  }, [reviews, baseScore])
 
   const metrics = [
     {
@@ -107,14 +117,14 @@ export default function FarmerDashboardPage() {
     {
       key: 'rating',
       label: 'Average Rating',
-      value: `${avgRating} ★`,
+      value: `${avgRatingDisplay} ★`,
       delta: 0,
-      deltaLabel: `from ${reviews.length} reviews`,
+      deltaLabel: `from ${reviews.length} review${reviews.length === 1 ? '' : 's'}`,
     },
     {
       key: 'trust',
       label: 'Trust Score',
-      value: `${user?.status === 'Active' ? 88 : 75}/100`,
+      value: `${calculatedTrustScore}/100`,
       delta: 0,
       deltaLabel: 'verified farmer',
     },
@@ -129,6 +139,7 @@ export default function FarmerDashboardPage() {
         title={farmerName}
         description={`${user?.farmName || 'WiMakit Farm'} · ${farmLocation}`}
       >
+        <TrustScore score={calculatedTrustScore} hint="Trust score reflects order fulfillment speed, quality reviews, and NIN verification." />
         <VerificationBadge status={user?.verificationStatus || 'Approved'} />
         <Button
           nativeButton={false}

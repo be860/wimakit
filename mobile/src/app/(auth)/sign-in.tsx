@@ -7,7 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -135,12 +135,7 @@ export default function SignInScreen() {
 
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() =>
-                Alert.alert(
-                  'Password Reset',
-                  'Please contact support or use email verification to reset your password.'
-                )
-              }
+              onPress={() => router.push('/(auth)/forgot-password' as any)}
             >
               <Text style={styles.forgotText} allowFontScaling={false}>
                 Forgot Password?

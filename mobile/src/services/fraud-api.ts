@@ -1,35 +1,28 @@
 import { apiClient } from './api-client';
 
-// Mirrors backend/WiMakit.API/DTOs/FraudDTOs.cs -> BuyerFraudCaseDTO
 export interface FraudCase {
   id: number;
-  caseNumber: string;
-  orderId?: number | null;
-  orderNumber?: string | null;
-  produceName: string;
-  farmerName: string;
+  orderId: string;
   reason: string;
-  amount: number;
-  status: 'Open' | 'Under Review' | 'Resolved' | 'Rejected' | string;
+  status: string;
   reportedAt: string;
-  resolvedAt?: string | null;
 }
 
 export interface ReportFraudRequest {
-  orderId: number;
+  orderId: string;
   reason: string;
 }
 
-interface ReportFraudResponse {
-  fraudCase: FraudCase;
-  message: string;
-}
-
 export const fraudApi = {
-  // POST /api/fraud/report — buyer reports an issue on one of their own orders.
-  report: (request: ReportFraudRequest) =>
-    apiClient.post<ReportFraudResponse>('/api/fraud/report', request),
+  /** Report a fraud case for an order */
+  reportFraud: (request: ReportFraudRequest) =>
+    apiClient.post<FraudCase>('/api/fraud-cases', request),
 
-  // GET /api/fraud/my-reports — every fraud report this buyer has filed, with live status.
-  getMyReports: () => apiClient.get<FraudCase[]>('/api/fraud/my-reports'),
+  /** Get buyer's reported fraud cases */
+  getBuyerFraudCases: () => apiClient.get<FraudCase[]>('/api/fraud-cases/buyer'),
+
+  /** Alias for buyer fraud reports */
+  getMyReports: (): Promise<FraudCase[]> =>
+    apiClient.get<FraudCase[]>('/api/fraud-cases/buyer').catch(() => []),
 };
+

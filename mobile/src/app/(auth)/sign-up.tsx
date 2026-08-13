@@ -17,6 +17,30 @@ import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { GoogleLogo } from '../../components/common/GoogleLogo';
 import { useAuth } from '../../context/auth-context';
 
+function checkPassword(pwd: string) {
+  return {
+    length: pwd.length >= 6,
+    uppercase: /[A-Z]/.test(pwd),
+    lowercase: /[a-z]/.test(pwd),
+    digit: /[0-9]/.test(pwd),
+  };
+}
+
+function PasswordRule({ met, text }: { met: boolean; text: string }) {
+  return (
+    <View style={ruleStyles.row}>
+      <Ionicons
+        name={met ? 'checkmark-circle' : 'ellipse-outline'}
+        size={14}
+        color={met ? COLORS.accent : COLORS.textSecondary}
+      />
+      <Text style={[ruleStyles.text, met && ruleStyles.textMet]} allowFontScaling={false}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 export default function SignUpScreen() {
   const router = useRouter();
   const { registerBuyer } = useAuth();
@@ -177,6 +201,19 @@ export default function SignUpScreen() {
             onFocus={scrollToBottom}
           />
 
+          {/* Inline password strength rules — appear as user types */}
+          {password.length > 0 && (() => {
+            const rules = checkPassword(password);
+            return (
+              <View style={styles.rulesBox}>
+                <PasswordRule met={rules.length} text="At least 6 characters" />
+                <PasswordRule met={rules.uppercase} text="One uppercase letter (A–Z)" />
+                <PasswordRule met={rules.lowercase} text="One lowercase letter (a–z)" />
+                <PasswordRule met={rules.digit} text="One number (0–9)" />
+              </View>
+            );
+          })()}
+
           {/* Full-width Navy Register Button */}
           <PrimaryButton
             label="Register"
@@ -268,4 +305,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     letterSpacing: 0.8,
   },
+  rulesBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: -8,
+    marginBottom: 14,
+    gap: 5,
+  },
 });
+
+const ruleStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  text: {
+    fontSize: 12,
+    fontFamily: FONTS.bodyRegular,
+    color: COLORS.textSecondary,
+  },
+  textMet: {
+    color: COLORS.accent,
+    fontFamily: FONTS.bodyMedium,
+  },
+});
+
