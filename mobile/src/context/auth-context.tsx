@@ -33,9 +33,12 @@ export interface BuyerRegisterPayload {
   email: string;
   password: string;
   phone?: string;
-  location?: string;
-  businessName?: string;
-  businessType?: string;
+  // The backend rejects a buyer registration that omits any of these three
+  // (AuthController.Register), so they are collected on the sign-up form
+  // rather than defaulted here.
+  location: string;
+  businessName: string;
+  businessType: string;
 }
 
 export interface RegisterResponse {
@@ -127,21 +130,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const registerBuyer = async (payload: BuyerRegisterPayload): Promise<RegisterResponse> => {
+    // `/api/auth/register` is [FromForm] on the backend — a JSON body binds to an
+    // empty object and fails every [Required] check.
     const formData = new FormData();
-    const firstName = payload.firstName.trim();
-    const lastName = payload.lastName.trim();
-    const location = payload.location?.trim() || 'Freetown';
-    const businessName = payload.businessName?.trim() || `${firstName}'s Buyer Account`;
-    const businessType = payload.businessType?.trim() || 'Retail Buyer';
 
-    formData.append('firstName', firstName);
-    formData.append('lastName', lastName);
+    formData.append('firstName', payload.firstName.trim());
+    formData.append('lastName', payload.lastName.trim());
     formData.append('email', payload.email.trim());
     formData.append('password', payload.password);
     formData.append('role', 'buyer');
-    formData.append('location', location);
-    formData.append('businessName', businessName);
-    formData.append('businessType', businessType);
+    formData.append('location', payload.location.trim());
+    formData.append('businessName', payload.businessName.trim());
+    formData.append('businessType', payload.businessType.trim());
     if (payload.phone?.trim()) formData.append('phone', payload.phone.trim());
 
     const res = await apiClient.post<RegisterResponse>('/api/auth/register', formData);

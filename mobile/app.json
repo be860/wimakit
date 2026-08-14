@@ -1,21 +1,21 @@
 {
   "expo": {
     "name": "WiMakit",
-    "slug": "wimakit",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/wimakit-icon.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "wimakit",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/images/wimakit-icon.png",
+      "icon": "./assets/images/app-icon.png",
       "bundleIdentifier": "wimakit.shop",
       "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#2E4E92",
-        "foregroundImage": "./assets/images/wimakit-icon.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/app-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "wimakit.shop",
@@ -25,16 +25,16 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/wimakit-icon.png"
+      "favicon": "./assets/images/app-icon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#2E4E92",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/wimakit-icon.png",
-          "imageWidth": 120
+          "imageWidth": 160
         }
       ],
       "expo-secure-store",

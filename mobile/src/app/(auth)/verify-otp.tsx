@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { useAuth } from '../../context/auth-context';
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string }>();
+  const params = useLocalSearchParams<{ email?: string; notice?: string }>();
   const emailParam = params.email || '';
 
   const { verifyOtp, resendOtp } = useAuth();
@@ -29,7 +29,11 @@ export default function VerifyOtpScreen() {
   const [resending, setResending] = useState(false);
   const [timer, setTimer] = useState(60);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(params.notice || null);
+
+  // OtpInput auto-submits on the 6th digit while the Verify button stays live,
+  // so without this a single code can fire two requests at a 10/min limiter.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -42,6 +46,8 @@ export default function VerifyOtpScreen() {
   }, [timer]);
 
   const handleVerify = async (codeToVerify?: string) => {
+    if (submittingRef.current) return;
+
     const finalOtp = codeToVerify || otp;
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -50,24 +56,28 @@ export default function VerifyOtpScreen() {
       setErrorMsg('Email address missing. Please try signing up again.');
       return;
     }
-    if (!finalOtp || finalOtp.length !== 6) {
+    if (!/^\d{6}$/.test(finalOtp)) {
       setErrorMsg('Please enter a valid 6-digit OTP code.');
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
 
     try {
       await verifyOtp(emailParam, finalOtp);
-      setLoading(false);
-      router.replace('/(tabs)/dashboard');
+      // `dashboard` is a hidden alias route (href: null), so landing there
+      // leaves the tab bar with nothing selected.
+      router.replace('/(tabs)');
     } catch (err: any) {
-      setLoading(false);
       const msg =
         err.data?.message ||
         err.message ||
         'Verification failed. Invalid or expired OTP code.';
       setErrorMsg(msg);
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
   };
 
@@ -76,6 +86,12 @@ export default function VerifyOtpScreen() {
 
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    if (!emailParam) {
+      setErrorMsg('Email address missing. Please try signing up again.');
+      return;
+    }
+
     setResending(true);
 
     try {

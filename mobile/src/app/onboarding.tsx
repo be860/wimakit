@@ -7,10 +7,10 @@ import {
   FlatList,
   Dimensions,
   TouchableOpacity,
-  SafeAreaView,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, FONTS } from '../constants/theme';
@@ -99,7 +99,7 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Logo size="sm" />
       </View>
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 20,
     paddingBottom: 16,
   },
   carousel: {

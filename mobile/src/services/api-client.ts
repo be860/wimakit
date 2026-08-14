@@ -23,6 +23,51 @@ export class ApiClientError extends Error {
   }
 }
 
+/**
+ * The API answers with three different error shapes:
+ *
+ *   1. Hand-written failures      -> { message }
+ *   2. ASP.NET model validation   -> { title, status, errors: { Field: [msg] } }
+ *   3. Rate limiting (429)        -> plain text, not JSON
+ *
+ * Only the first carries a `message`, so without this the other two surface to
+ * the user as "API Request failed with status 400" / "HTTP Error 429".
+ */
+function normalizeErrorBody(status: number, body: unknown, fallbackText?: string): ApiError {
+  if (body && typeof body === 'object') {
+    const data = body as Record<string, any>;
+
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return { message: data.message, errors: data.errors, code: data.code };
+    }
+
+    // Flatten ProblemDetails validation errors into one readable sentence.
+    if (data.errors && typeof data.errors === 'object') {
+      const messages = Object.values(data.errors as Record<string, unknown>)
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      if (messages.length) {
+        return { message: messages.join('\n'), errors: data.errors, code: data.code };
+      }
+    }
+
+    if (typeof data.title === 'string' && data.title.trim()) {
+      return { message: data.title, errors: data.errors, code: data.code };
+    }
+  }
+
+  if (typeof fallbackText === 'string' && fallbackText.trim()) {
+    return { message: fallbackText.trim() };
+  }
+
+  if (status === 429) {
+    return { message: 'Too many requests. Please wait a moment and try again.' };
+  }
+
+  return { message: `An unexpected error occurred (HTTP ${status}).` };
+}
+
 export const TOKEN_KEY = 'wimakit_access_token';
 export const REFRESH_TOKEN_KEY = 'wimakit_refresh_token';
 export const USER_KEY = 'wimakit_user_data';
@@ -86,13 +131,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    let errorData: ApiError = { message: 'An unexpected error occurred.' };
+    // Read as text first: a 429 body is plain text, so response.json() would
+    // throw and discard the server's actual explanation.
+    const rawBody = await response.text().catch(() => '');
+
+    let parsed: unknown;
     try {
-      errorData = await response.json();
+      parsed = rawBody ? JSON.parse(rawBody) : undefined;
     } catch {
-      errorData = { message: response.statusText || `HTTP Error ${response.status}` };
+      parsed = undefined;
     }
-    throw new ApiClientError(response.status, errorData);
+
+    throw new ApiClientError(
+      response.status,
+      normalizeErrorBody(response.status, parsed, parsed === undefined ? rawBody : undefined),
+    );
   }
 
   if (response.status === 204) {

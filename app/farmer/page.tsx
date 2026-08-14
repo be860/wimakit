@@ -139,7 +139,6 @@ export default function FarmerDashboardPage() {
         title={farmerName}
         description={`${user?.farmName || 'WiMakit Farm'} · ${farmLocation}`}
       >
-        <TrustScore score={calculatedTrustScore} hint="Trust score reflects order fulfillment speed, quality reviews, and NIN verification." />
         <VerificationBadge status={user?.verificationStatus || 'Approved'} />
         <Button
           nativeButton={false}

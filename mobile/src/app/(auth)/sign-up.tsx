@@ -6,16 +6,23 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../constants/theme';
+import { BUSINESS_TYPES, DISTRICTS } from '../../constants/buyer';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { PillTextInput } from '../../components/common/PillTextInput';
+import { PillSelectInput } from '../../components/common/PillSelectInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { GoogleLogo } from '../../components/common/GoogleLogo';
 import { useAuth } from '../../context/auth-context';
+import { useGoogleAuth } from '../../hooks/use-google-auth';
+
+// Mirrors the backend's [RegularExpression] on FirstName / LastName. Validating
+// locally keeps the user out of an ASP.NET ModelState 400 for a typo.
+const NAME_PATTERN = /^[a-zA-Z\s'-]+$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function checkPassword(pwd: string) {
   return {
@@ -43,16 +50,40 @@ function PasswordRule({ met, text }: { met: boolean; text: string }) {
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { registerBuyer } = useAuth();
+  const { registerBuyer, googleSignIn } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [district, setDistrict] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { isReady: googleReady, promptGoogleSignIn } = useGoogleAuth({
+    onSuccess: async (idToken) => {
+      setGoogleLoading(true);
+      try {
+        await googleSignIn(idToken);
+        router.replace('/(tabs)');
+      } catch (err: any) {
+        setErrorMsg(
+          err.data?.message || err.message || 'Google sign-up failed. Please try again.'
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    onError: (message) => {
+      setGoogleLoading(false);
+      setErrorMsg(message);
+    },
+  });
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -60,23 +91,47 @@ export default function SignUpScreen() {
     }, 150);
   };
 
+  /** Returns the first validation failure, or null when the form is good to send. */
+  const validate = (): string | null => {
+    if (!firstName.trim()) return 'First name is required.';
+    if (firstName.trim().length > 50) return 'First name cannot exceed 50 characters.';
+    if (!NAME_PATTERN.test(firstName.trim()))
+      return 'First name can only contain letters, spaces, hyphens, and apostrophes.';
+
+    if (!lastName.trim()) return 'Last name is required.';
+    if (lastName.trim().length > 50) return 'Last name cannot exceed 50 characters.';
+    if (!NAME_PATTERN.test(lastName.trim()))
+      return 'Last name can only contain letters, spaces, hyphens, and apostrophes.';
+
+    if (!email.trim()) return 'Email address is required.';
+    if (!EMAIL_PATTERN.test(email.trim())) return 'Please enter a valid email address.';
+    if (email.trim().length > 100) return 'Email cannot exceed 100 characters.';
+
+    if (phone.trim() && phone.trim().length > 20)
+      return 'Phone number cannot exceed 20 characters.';
+
+    if (!businessName.trim()) return 'Business / organization name is required.';
+    if (businessName.trim().length > 100)
+      return 'Business name cannot exceed 100 characters.';
+
+    if (!businessType) return 'Please select a business type.';
+    if (!district) return 'Please select your district.';
+
+    const rules = checkPassword(password);
+    if (!rules.length) return 'Password must be at least 6 characters.';
+    if (password.length > 100) return 'Password cannot exceed 100 characters.';
+    if (!rules.uppercase || !rules.lowercase || !rules.digit)
+      return 'Password must include an uppercase letter, a lowercase letter, and a number.';
+
+    return null;
+  };
+
   const handleSignUp = async () => {
     setErrorMsg(null);
 
-    if (!firstName.trim()) {
-      setErrorMsg('First name is required.');
-      return;
-    }
-    if (!lastName.trim()) {
-      setErrorMsg('Last name is required.');
-      return;
-    }
-    if (!email.trim()) {
-      setErrorMsg('Email address is required.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters.');
+    const validationError = validate();
+    if (validationError) {
+      setErrorMsg(validationError);
       return;
     }
 
@@ -89,14 +144,18 @@ export default function SignUpScreen() {
         email: email.trim(),
         password,
         phone: phone.trim(),
+        businessName: businessName.trim(),
+        businessType,
+        location: district,
       });
 
       setLoading(false);
 
-      // Navigate to verify OTP with email parameter
+      // The backend still reports success when the OTP email fails to send, and
+      // that message is the only warning the user will get.
       router.push({
         pathname: '/(auth)/verify-otp',
-        params: { email: email.trim() },
+        params: { email: res.email || email.trim(), notice: res.message ?? '' },
       });
     } catch (err: any) {
       setLoading(false);
@@ -109,10 +168,8 @@ export default function SignUpScreen() {
   };
 
   const handleGoogleSignUp = async () => {
-    Alert.alert(
-      'Google Sign Up',
-      'Connecting to Google authentication service...'
-    );
+    setErrorMsg(null);
+    await promptGoogleSignIn();
   };
 
   return (
@@ -191,6 +248,37 @@ export default function SignUpScreen() {
           />
 
           <PillTextInput
+            label="Business / Organization Name"
+            placeholder="e.g. Kamara Fresh Foods"
+            leadingIcon="business-outline"
+            maxLength={100}
+            value={businessName}
+            onChangeText={setBusinessName}
+            returnKeyType="next"
+            onFocus={scrollToBottom}
+          />
+
+          <PillSelectInput
+            label="Business Type"
+            placeholder="Select your business type"
+            leadingIcon="briefcase-outline"
+            value={businessType}
+            options={BUSINESS_TYPES}
+            onSelect={setBusinessType}
+            modalTitle="Business Type"
+          />
+
+          <PillSelectInput
+            label="District"
+            placeholder="Select your district"
+            leadingIcon="location-outline"
+            value={district}
+            options={DISTRICTS}
+            onSelect={setDistrict}
+            modalTitle="District"
+          />
+
+          <PillTextInput
             label="Password"
             placeholder="At least 6 characters"
             leadingIcon="lock-closed-outline"
@@ -238,6 +326,8 @@ export default function SignUpScreen() {
             label="Google"
             variant="google"
             showArrow={false}
+            loading={googleLoading}
+            disabled={!googleReady || googleLoading}
             onPress={handleGoogleSignUp}
             icon={<GoogleLogo size={22} />}
           />
