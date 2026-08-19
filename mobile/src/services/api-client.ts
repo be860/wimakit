@@ -73,6 +73,56 @@ export const REFRESH_TOKEN_KEY = 'wimakit_refresh_token';
 export const USER_KEY = 'wimakit_user_data';
 export const ONBOARDING_COMPLETED_KEY = 'wimakit_onboarding_completed';
 
+// Refresh tokens are single-use on the backend (redeeming one revokes it and
+// issues a new one). If two requests both hit a 401 around the same time —
+// easy to trigger during a slow action like recording a voice note — each
+// independently redeeming the same stored refresh token would mean the
+// second one uses an already-revoked token and fails. Sharing one in-flight
+// refresh promise across concurrent 401s ensures only one redemption happens.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = await getStorageItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return null;
+
+    try {
+      const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!refreshRes.ok) {
+        await deleteStorageItem(TOKEN_KEY);
+        await deleteStorageItem(REFRESH_TOKEN_KEY);
+        await deleteStorageItem(USER_KEY);
+        return null;
+      }
+
+      const refreshData = await refreshRes.json();
+      await setStorageItem(TOKEN_KEY, refreshData.accessToken);
+      if (refreshData.refreshToken) {
+        await setStorageItem(REFRESH_TOKEN_KEY, refreshData.refreshToken);
+      }
+      return refreshData.accessToken as string;
+    } catch {
+      await deleteStorageItem(TOKEN_KEY);
+      await deleteStorageItem(REFRESH_TOKEN_KEY);
+      await deleteStorageItem(USER_KEY);
+      return null;
+    }
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith('http')
     ? endpoint
@@ -98,35 +148,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   // Handle Token Refresh on 401 Unauthorized
   if (response.status === 401) {
-    const refreshToken = await getStorageItem(REFRESH_TOKEN_KEY);
-    if (refreshToken) {
-      try {
-        const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-
-        if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
-          await setStorageItem(TOKEN_KEY, refreshData.accessToken);
-          if (refreshData.refreshToken) {
-            await setStorageItem(REFRESH_TOKEN_KEY, refreshData.refreshToken);
-          }
-
-          // Retry original request with new token
-          headers.set('Authorization', `Bearer ${refreshData.accessToken}`);
-          response = await fetch(url, { ...options, headers });
-        } else {
-          await deleteStorageItem(TOKEN_KEY);
-          await deleteStorageItem(REFRESH_TOKEN_KEY);
-          await deleteStorageItem(USER_KEY);
-        }
-      } catch {
-        await deleteStorageItem(TOKEN_KEY);
-        await deleteStorageItem(REFRESH_TOKEN_KEY);
-        await deleteStorageItem(USER_KEY);
-      }
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers.set('Authorization', `Bearer ${newToken}`);
+      response = await fetch(url, { ...options, headers });
     }
   }
 

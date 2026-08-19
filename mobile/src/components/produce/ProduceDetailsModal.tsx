@@ -12,6 +12,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,14 @@ import { useFavorites } from '../../context/favorites-context';
 import { useChat } from '../../context/chat-context';
 import { reviewsApi, Review } from '../../services/reviews-api';
 import { getErrorMessage } from '../../services/api-client';
+
+// A percentage maxHeight on modalContent relies on Yoga measuring its "auto"
+// content height first (to know whether it needs to shrink to that cap) —
+// but ScrollView doesn't propagate its content's true height upward for that
+// measurement, so modalContent's auto height comes out near-zero and there's
+// nothing to shrink from. Computing the cap as a concrete number and applying
+// it directly to the ScrollView sidesteps that ambiguity entirely.
+const MODAL_MAX_HEIGHT = Dimensions.get('window').height * 0.92;
 
 interface ProduceDetailsModalProps {
   produce: Produce | null;
@@ -533,11 +542,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '92%',
-    // RN's Yoga defaults flexShrink to 0 (unlike web CSS, where it's 1), so
-    // without this the flex:1 ScrollView below has no definite space to
-    // resolve against and collapses instead of filling up to maxHeight.
-    flexShrink: 1,
+    maxHeight: MODAL_MAX_HEIGHT,
     paddingBottom: 24,
     overflow: 'hidden',
   },
@@ -551,7 +556,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   scrollBody: {
-    flex: 1,
+    maxHeight: MODAL_MAX_HEIGHT,
   },
   imageContainer: {
     width: '100%',

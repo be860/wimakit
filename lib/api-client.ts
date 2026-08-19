@@ -23,6 +23,56 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+// Refresh tokens are single-use on the backend (redeeming one revokes it and
+// issues a new one). If two requests both hit a 401 around the same time —
+// easy to trigger during a slow action like recording a voice note — each
+// independently redeeming the same stored refresh token would mean the
+// second one uses an already-revoked token and fails. Sharing one in-flight
+// refresh promise across concurrent 401s ensures only one redemption happens.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
+
+    try {
+      const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!refreshRes.ok) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        return null;
+      }
+
+      const refreshData = await refreshRes.json();
+      localStorage.setItem('token', refreshData.accessToken);
+      if (refreshData.refreshToken) {
+        localStorage.setItem('refreshToken', refreshData.refreshToken);
+      }
+      return refreshData.accessToken as string;
+    } catch {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      return null;
+    }
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
@@ -48,35 +98,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   // Handle Token Refresh on 401 Unauthorized
   if (response.status === 401 && typeof window !== 'undefined') {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken) {
-      try {
-        const refreshRes = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-
-        if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
-          localStorage.setItem('token', refreshData.accessToken);
-          if (refreshData.refreshToken) {
-            localStorage.setItem('refreshToken', refreshData.refreshToken);
-          }
-
-          // Retry original request with new token
-          headers.set('Authorization', `Bearer ${refreshData.accessToken}`);
-          response = await fetch(url, { ...options, headers });
-        } else {
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-        }
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-      }
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers.set('Authorization', `Bearer ${newToken}`);
+      response = await fetch(url, { ...options, headers });
     }
   }
 
