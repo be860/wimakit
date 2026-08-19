@@ -146,7 +146,7 @@ export function ProduceDetailsModal({
         <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
           <View style={styles.dragHandle} />
 
-          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false} bounces={false}>
             {/* Produce Image */}
             <View style={styles.imageContainer}>
               {produce.imageUrl ? (
@@ -499,6 +499,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     marginTop: 10,
     marginBottom: 6,
+  },
+  scrollBody: {
+    flex: 1,
   },
   imageContainer: {
     width: '100%',

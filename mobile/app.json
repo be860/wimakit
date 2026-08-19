@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
-    "scheme": "wimakit",
+    "scheme": ["wimakit", "wimakit.shop"],
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/app-icon.png",

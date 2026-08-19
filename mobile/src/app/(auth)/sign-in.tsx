@@ -7,7 +7,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ import { PillTextInput } from '../../components/common/PillTextInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { useAuth } from '../../context/auth-context';
 import { GoogleLogo } from '../../components/common/GoogleLogo';
+import { useGoogleAuth } from '../../hooks/use-google-auth';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -26,7 +26,28 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { isReady: googleReady, promptGoogleSignIn } = useGoogleAuth({
+    onSuccess: async (idToken) => {
+      setGoogleLoading(true);
+      try {
+        await googleSignIn(idToken);
+        router.replace('/(tabs)');
+      } catch (err: any) {
+        setErrorMsg(
+          err.data?.message || err.message || 'Google sign-in failed. Please try again.'
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    onError: (message) => {
+      setGoogleLoading(false);
+      setErrorMsg(message);
+    },
+  });
 
   const handleSignIn = async () => {
     setErrorMsg(null);
@@ -53,10 +74,8 @@ export default function SignInScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    Alert.alert(
-      'Google Sign In',
-      'Connecting to Google authentication service...'
-    );
+    setErrorMsg(null);
+    await promptGoogleSignIn();
   };
 
   return (
@@ -167,6 +186,8 @@ export default function SignInScreen() {
             label="Google"
             variant="google"
             showArrow={false}
+            loading={googleLoading}
+            disabled={!googleReady || googleLoading}
             onPress={handleGoogleSignIn}
             icon={<GoogleLogo size={22} />}
           />

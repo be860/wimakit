@@ -152,21 +152,25 @@ try {
     Write-Host "Source: $(Split-Path $sourcePath -Leaf) ($($source.Width)x$($source.Height)), ink $($ink.Width)x$($ink.Height) at ($($ink.X),$($ink.Y))"
     Write-Host "Generating:"
 
-    # 80% -- iOS applies only a rounded-rect mask, so a modest margin is enough.
+    # 70% -- iOS applies only a rounded-rect mask, so a modest margin is enough.
+    # Trimmed down from 0.80 -- on device the artwork read as crowding the
+    # rounded corners with too little breathing room.
     New-AppIcon -Source $source -SourceRect $ink `
                 -OutputPath (Join-Path $imagesDir 'app-icon.png') `
-                -Scale 0.80 `
+                -Scale 0.70 `
                 -Background ([System.Drawing.Color]::White)
 
-    # 59% -- Android guarantees only the inner 72/108 of the canvas survives the
+    # 50% -- Android guarantees only the inner 72/108 of the canvas survives the
     # launcher mask, and on a circular mask (Pixel) that guarantee is a circle of
     # radius 341px, not a 683px square. A 1.2:1 logo scaled to the full 66% square
-    # pushes its widest ink out to r=378 and loses the lettuce tip. 0.59 inscribes
-    # the artwork's diagonal inside the circle instead; verified by the safe-zone
-    # check below, which must report zero clipped pixels.
+    # pushes its widest ink out to r=378 and loses the lettuce tip. Trimmed from
+    # 0.59 (which only just inscribed the diagonal in that circle, leaving barely
+    # any margin) down to 0.50 for a visibly centered icon with real white space
+    # around it; verified by the safe-zone check below, which must report zero
+    # clipped pixels.
     New-AppIcon -Source $source -SourceRect $ink `
                 -OutputPath (Join-Path $imagesDir 'app-icon-foreground.png') `
-                -Scale 0.59 `
+                -Scale 0.50 `
                 -Background ([System.Drawing.Color]::White)
 
     Assert-SafeZone -Path (Join-Path $imagesDir 'app-icon-foreground.png')

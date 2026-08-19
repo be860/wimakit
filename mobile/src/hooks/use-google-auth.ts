@@ -33,6 +33,10 @@ export function useGoogleAuth({ onSuccess, onError }: UseGoogleAuthOptions) {
   onSuccessRef.current = onSuccess;
   onErrorRef.current = onError;
 
+  // Uses expo-auth-session's default native redirect (${applicationId}:/oauthredirect,
+  // i.e. "wimakit.shop:/oauthredirect") — Google already accepts that scheme for
+  // this Android OAuth client. app.json registers "wimakit.shop" as an additional
+  // intent filter so the OS can hand control back to the app after Google redirects.
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId,
     androidClientId,

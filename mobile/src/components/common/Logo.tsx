@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   // wimakit-logo-stacked.png — 280x313
   logoImageLg: {
-    width: 250,
-    height: 280,
+    width: 150,
+    height: 168,
   },
 });

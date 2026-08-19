@@ -92,15 +92,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logoContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 48,
   },
   bottomSection: {
     width: '100%',
     maxWidth: 270,
     alignItems: 'center',
-    marginBottom: 64,
   },
   syncWrapper: {
     flexDirection: 'row',

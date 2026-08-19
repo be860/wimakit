@@ -445,6 +445,7 @@ namespace WiMakit.API.Controllers
                     Phone = request.Phone,
                     Location = request.Location,
                     District = request.Location,
+                    ProfilePhotoUrl = payload.Picture,
                     VerificationStatus = "Pending",
                     Status = "Active",
                     IsEmailVerified = true,
@@ -455,10 +456,24 @@ namespace WiMakit.API.Controllers
             }
             else
             {
+                var needsUpdate = false;
+
                 if (user.GoogleId == null)
                 {
                     user.GoogleId = googleId;
                     user.IsEmailVerified = true;
+                    needsUpdate = true;
+                }
+
+                // Only fill in a missing photo — don't clobber one the user uploaded themselves.
+                if (string.IsNullOrEmpty(user.ProfilePhotoUrl) && !string.IsNullOrEmpty(payload.Picture))
+                {
+                    user.ProfilePhotoUrl = payload.Picture;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate)
+                {
                     user.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
                 }
