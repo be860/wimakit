@@ -70,14 +70,7 @@ namespace WiMakit.API.Services
 
                 await using var stream = file.OpenReadStream();
                 using var content = new StreamContent(stream);
-                // Browser-recorded audio (MediaRecorder) sets ContentType to things like
-                // "audio/webm;codecs=opus" — MediaTypeHeaderValue's constructor rejects the
-                // inline codecs parameter outright. Storage doesn't need it, so strip
-                // anything after the base type/subtype before constructing the header.
-                var rawContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
-                var baseContentType = rawContentType.Split(';')[0].Trim();
-                content.Headers.ContentType = new MediaTypeHeaderValue(
-                    string.IsNullOrWhiteSpace(baseContentType) ? "application/octet-stream" : baseContentType);
+                content.Headers.ContentType = ParseContentType(file.ContentType);
 
                 using var requestMessage = new HttpRequestMessage(HttpMethod.Post, uploadUrl)
                 {
@@ -104,6 +97,43 @@ namespace WiMakit.API.Services
                 _logger.LogError(ex, "Unexpected error uploading image to Supabase Storage.");
                 return null;
             }
+        }
+
+        // MediaTypeHeaderValue's single-string constructor rejects a raw
+        // "type/subtype;param=value" string outright (e.g. the "audio/webm;codecs=opus"
+        // a browser's MediaRecorder sets) — it only accepts the bare type/subtype.
+        // Parameters like codecs matter for playback (some browsers can't decode audio
+        // correctly without the hint), so rebuild the header properly via .Parameters
+        // instead of just discarding everything after the first semicolon.
+        private static MediaTypeHeaderValue ParseContentType(string? rawContentType)
+        {
+            var value = string.IsNullOrWhiteSpace(rawContentType) ? "application/octet-stream" : rawContentType;
+            var segments = value.Split(';');
+            var baseType = segments[0].Trim();
+
+            var mediaType = new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(baseType) ? "application/octet-stream" : baseType);
+
+            for (var i = 1; i < segments.Length; i++)
+            {
+                var pair = segments[i].Split('=', 2);
+                if (pair.Length != 2) continue;
+
+                var paramName = pair[0].Trim();
+                var paramValue = pair[1].Trim().Trim('"');
+                if (string.IsNullOrWhiteSpace(paramName) || string.IsNullOrWhiteSpace(paramValue)) continue;
+
+                try
+                {
+                    mediaType.Parameters.Add(new NameValueHeaderValue(paramName, paramValue));
+                }
+                catch
+                {
+                    // A malformed parameter shouldn't fail the whole upload over cosmetic metadata.
+                }
+            }
+
+            return mediaType;
         }
     }
 }
