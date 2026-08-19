@@ -70,8 +70,14 @@ namespace WiMakit.API.Services
 
                 await using var stream = file.OpenReadStream();
                 using var content = new StreamContent(stream);
+                // Browser-recorded audio (MediaRecorder) sets ContentType to things like
+                // "audio/webm;codecs=opus" — MediaTypeHeaderValue's constructor rejects the
+                // inline codecs parameter outright. Storage doesn't need it, so strip
+                // anything after the base type/subtype before constructing the header.
+                var rawContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
+                var baseContentType = rawContentType.Split(';')[0].Trim();
                 content.Headers.ContentType = new MediaTypeHeaderValue(
-                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+                    string.IsNullOrWhiteSpace(baseContentType) ? "application/octet-stream" : baseContentType);
 
                 using var requestMessage = new HttpRequestMessage(HttpMethod.Post, uploadUrl)
                 {
