@@ -77,6 +77,7 @@ export interface FarmerOrder {
 export interface Conversation {
   userId: number
   userName: string
+  userProfilePhotoUrl?: string
   userLocation?: string
   userRole: string
   lastMessage: string
@@ -86,15 +87,23 @@ export interface Conversation {
   produceName?: string
 }
 
+export type MessageType = 'text' | 'voice' | 'image'
+
 export interface Message {
   id: number
   senderId: number
   senderName: string
+  senderProfilePhotoUrl?: string
   receiverId: number
   receiverName: string
   produceId?: number
   produceName?: string
   content: string
+  messageType: MessageType
+  attachmentUrl?: string
+  attachmentDurationSeconds?: number
+  isEdited: boolean
+  isDeleted: boolean
   createdAt: string
   isRead: boolean
 }
@@ -219,8 +228,27 @@ export const farmerApi = {
   getConversation: (otherUserId: number) =>
     apiClient.get<Message[]>(`/api/messages/conversation/${otherUserId}`),
 
-  sendMessage: (receiverId: number, content: string) =>
-    apiClient.post<Message>('/api/messages', { receiverId, content }),
+  sendMessage: (
+    receiverId: number,
+    data: {
+      content?: string
+      produceId?: number
+      messageType?: MessageType
+      attachmentUrl?: string
+      attachmentDurationSeconds?: number
+    },
+  ) => apiClient.post<Message>('/api/messages', { receiverId, ...data }),
+
+  editMessage: (id: number, content: string) =>
+    apiClient.put<Message>(`/api/messages/${id}`, { content }),
+
+  deleteMessage: (id: number) => apiClient.delete<void>(`/api/messages/${id}`),
+
+  uploadMessageAttachment: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return apiClient.post<{ url: string; type: 'image' | 'voice' }>('/api/messages/attachment', form)
+  },
 
   markMessageRead: (id: number) => apiClient.put(`/api/messages/${id}/read`),
 

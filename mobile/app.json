@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
-    "scheme": ["wimakit", "wimakit.shop"],
+    "scheme": [
+      "wimakit",
+      "wimakit.shop"
+    ],
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/images/app-icon.png",
@@ -43,6 +46,12 @@
         {
           "photosPermission": "WiMakit uses your photo library so you can choose a profile picture.",
           "cameraPermission": "WiMakit uses your camera so you can take a new profile picture."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "WiMakit uses your microphone so you can send voice messages to farmers."
         }
       ]
     ],

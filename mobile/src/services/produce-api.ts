@@ -6,6 +6,7 @@ export interface Produce {
   farmerId: number;
   farmerName: string;
   farmerLocation: string;
+  farmerProfilePhotoUrl?: string | null;
   name: string;
   category: string;
   description: string;

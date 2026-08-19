@@ -64,7 +64,11 @@ export function ProduceCard({
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
-            <Ionicons name="person-outline" size={12} color={COLORS.textSecondary} />
+            {produce.farmerProfilePhotoUrl ? (
+              <Image source={{ uri: produce.farmerProfilePhotoUrl }} style={styles.farmerAvatar} />
+            ) : (
+              <Ionicons name="person-outline" size={12} color={COLORS.textSecondary} />
+            )}
             <Text style={styles.metaText} numberOfLines={1} allowFontScaling={false}>
               {produce.farmerName}
             </Text>
@@ -147,6 +151,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  farmerAvatar: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EDEFF3',
   },
   metaText: {
     flex: 1,

@@ -15,14 +15,31 @@ namespace WiMakit.API.Models
         public int ReceiverId { get; set; }
         
         public int? ProduceId { get; set; }
-        
+
         [Required]
         public string Content { get; set; } = string.Empty;
-        
+
+        // "text" | "voice" | "image"
+        public string MessageType { get; set; } = "text";
+
+        public string? AttachmentUrl { get; set; }
+
+        // Only set for voice messages — recorded length, so the UI can show it
+        // without downloading/decoding the audio file.
+        public int? AttachmentDurationSeconds { get; set; }
+
+        public bool IsEdited { get; set; } = false;
+
+        public DateTime? EditedAt { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
+
+        public DateTime? DeletedAt { get; set; }
+
         public bool IsRead { get; set; } = false;
-        
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        
+
         // Navigation properties
         [ForeignKey("SenderId")]
         public virtual User? Sender { get; set; }

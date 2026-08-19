@@ -72,6 +72,7 @@ namespace WiMakit.API.DTOs
         public int Id { get; set; }
         public int FarmerId { get; set; }
         public string FarmerName { get; set; } = string.Empty;
+        public string? FarmerProfilePhotoUrl { get; set; }
         public string FarmerLocation { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;

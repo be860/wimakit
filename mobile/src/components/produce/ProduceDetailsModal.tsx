@@ -269,7 +269,11 @@ export function ProduceDetailsModal({
               {/* Farmer Info Card */}
               <View style={styles.farmerCard}>
                 <View style={styles.farmerAvatar}>
-                  <Ionicons name="person" size={20} color={COLORS.primary} />
+                  {produce.farmerProfilePhotoUrl ? (
+                    <Image source={{ uri: produce.farmerProfilePhotoUrl }} style={styles.farmerAvatarImage} />
+                  ) : (
+                    <Ionicons name="person" size={20} color={COLORS.primary} />
+                  )}
                 </View>
                 <View style={styles.farmerDetails}>
                   <Text style={styles.farmerName} numberOfLines={1} allowFontScaling={false}>
@@ -530,6 +534,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '92%',
+    // RN's Yoga defaults flexShrink to 0 (unlike web CSS, where it's 1), so
+    // without this the flex:1 ScrollView below has no definite space to
+    // resolve against and collapses instead of filling up to maxHeight.
+    flexShrink: 1,
     paddingBottom: 24,
     overflow: 'hidden',
   },
@@ -687,6 +695,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  farmerAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   farmerDetails: {
     flex: 1,

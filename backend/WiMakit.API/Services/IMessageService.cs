@@ -9,5 +9,7 @@ namespace WiMakit.API.Services
         Task<IEnumerable<MessageDTO>> GetConversationAsync(int userId, int otherUserId);
         Task<MessageDTO?> SendMessageAsync(int senderId, SendMessageRequest request);
         Task<bool> MarkAsReadAsync(int messageId, int userId);
+        Task<(MessageDTO? Message, string? Error)> EditMessageAsync(int messageId, int userId, string newContent);
+        Task<bool> DeleteMessageAsync(int messageId, int userId);
     }
 }
