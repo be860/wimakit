@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../../constants/theme';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { OtpInput } from '../../components/auth/OtpInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { useAuth } from '../../context/auth-context';
+import { getErrorMessage } from '../../services/api-client';
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
@@ -70,11 +72,9 @@ export default function VerifyOtpScreen() {
       // leaves the tab bar with nothing selected.
       router.replace('/(tabs)');
     } catch (err: any) {
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Verification failed. Invalid or expired OTP code.';
+      const msg = getErrorMessage(err, 'Verification failed. Invalid or expired OTP code.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Verification failed', text2: msg });
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -99,13 +99,12 @@ export default function VerifyOtpScreen() {
       setResending(false);
       setTimer(60);
       setSuccessMsg(msg);
+      Toast.show({ type: 'success', text1: 'OTP resent', text2: msg });
     } catch (err: any) {
       setResending(false);
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Could not resend OTP code. Please try again.';
+      const msg = getErrorMessage(err, 'Could not resend OTP code. Please try again.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not resend OTP', text2: msg });
     }
   };
 

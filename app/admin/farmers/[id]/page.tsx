@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import { adminApi, FarmerAdmin, LE } from '@/lib/admin/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Panel, StatusBadge } from '@/components/admin/primitives'
@@ -76,8 +78,17 @@ export default function FarmerDetailPage({
     try {
       await adminApi.updateFarmerStatus(farmer.id, status)
       setFarmer((prev) => prev ? { ...prev, status } : prev)
-    } catch {
-      // TODO: show error toast
+      toast.success(
+        status === 'Approved'
+          ? 'Farmer approved.'
+          : status === 'Rejected'
+            ? 'Farmer rejected.'
+            : status === 'Suspended'
+              ? 'Farmer suspended.'
+              : 'Farmer status updated.',
+      )
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not update the farmer's status. Please try again."))
     } finally {
       setUpdating(false)
     }

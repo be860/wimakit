@@ -16,11 +16,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { useCart, CartItem } from '../../context/cart-context';
 import { useAuth } from '../../context/auth-context';
 import { formatLE } from '../../services/produce-api';
 import { ordersApi } from '../../services/orders-api';
+import { getErrorMessage } from '../../services/api-client';
 import { PillTextInput } from '../../components/common/PillTextInput';
 import { PillSelectInput } from '../../components/common/PillSelectInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
@@ -61,7 +63,7 @@ export default function CartScreen() {
 
     for (const item of itemsToCharge) {
       try {
-        const result = await ordersApi.processPayment({
+        const result = await ordersApi.placeOrder({
           produceId: item.produce.id,
           quantity: item.quantity,
           paymentMethod,
@@ -78,7 +80,7 @@ export default function CartScreen() {
       } catch (err: any) {
         failures.push({
           name: item.produce.name,
-          message: err?.data?.message || err?.message || 'Could not place this order.',
+          message: getErrorMessage(err, 'Could not place this order.'),
         });
       }
     }
@@ -87,13 +89,19 @@ export default function CartScreen() {
 
     if (failures.length === 0) {
       setCheckoutOpen(false);
-      Alert.alert(
-        'Order Placed Successfully! 🎉',
-        'The farmers have received your order and will contact you for delivery.'
-      );
+      Toast.show({
+        type: 'success',
+        text1: 'Order placed successfully',
+        text2: 'The farmers have received your order and will contact you for delivery.',
+      });
       router.push('/(tabs)/orders');
     } else if (failures.length === itemsToCharge.length) {
       setCheckoutError(failures[0].message);
+      Toast.show({
+        type: 'error',
+        text1: 'Could not place order',
+        text2: failures[0].message,
+      });
     } else {
       setCheckoutOpen(false);
       Alert.alert(

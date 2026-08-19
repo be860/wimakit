@@ -3,9 +3,10 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import { CircleCheck, Loader2, MailCheck, RotateCcw, TriangleAlert } from 'lucide-react'
 
-import { apiClient } from '@/lib/api-client'
+import { apiClient, getErrorMessage } from '@/lib/api-client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -52,7 +53,9 @@ export function OtpForm() {
       setPending(false)
       setInvalid(true)
       setCode('')
-      setErrorMsg(err.data?.message || 'Verification failed. That OTP code is incorrect or expired.')
+      const msg = err.data?.message || 'Verification failed. That OTP code is incorrect or expired.'
+      setErrorMsg(msg)
+      toast.error(msg)
     }
   }
 
@@ -61,8 +64,9 @@ export function OtpForm() {
     try {
       await apiClient.post('/api/auth/request-otp', { email: email.trim() })
       setSeconds(RESEND_SECONDS)
-    } catch {
+    } catch (err) {
       setSeconds(RESEND_SECONDS)
+      toast.error(getErrorMessage(err, 'Could not resend the code. Please try again.'))
     }
   }
 

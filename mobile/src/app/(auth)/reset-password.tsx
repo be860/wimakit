@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../../constants/theme';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { PillTextInput } from '../../components/common/PillTextInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
-import { apiClient } from '../../services/api-client';
+import { apiClient, getErrorMessage } from '../../services/api-client';
 
 /** Password rule checker */
 function checkPassword(pwd: string) {
@@ -68,17 +69,20 @@ export default function ResetPasswordScreen() {
 
       setSuccessMsg('Password reset successfully! You can now sign in.');
       setLoading(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Password reset',
+        text2: 'You can now sign in with your new password.',
+      });
 
       setTimeout(() => {
         router.replace('/(auth)/sign-in');
       }, 2000);
     } catch (err: any) {
       setLoading(false);
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Reset failed. Please check your code and try again.';
+      const msg = getErrorMessage(err, 'Reset failed. Please check your code and try again.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not reset password', text2: msg });
     }
   };
 

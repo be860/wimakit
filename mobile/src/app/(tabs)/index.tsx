@@ -16,12 +16,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { useAuth } from '../../context/auth-context';
 import { useFavorites } from '../../context/favorites-context';
 import { useChat } from '../../context/chat-context';
 import { PRODUCE_CATEGORIES } from '../../constants/produce-categories';
 import { produceApi, Produce } from '../../services/produce-api';
+import { notificationsApi } from '../../services/notifications-api';
+import { getErrorMessage } from '../../services/api-client';
 import { ProduceCard } from '../../components/produce/ProduceCard';
 import { ProduceDetailsModal } from '../../components/produce/ProduceDetailsModal';
 import { PaginationDots } from '../../components/common/PaginationDots';
@@ -69,6 +72,7 @@ export default function HomeScreen() {
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [selectedProduce, setSelectedProduce] = useState<Produce | null>(null);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   const loadFeatured = useCallback(async () => {
     try {
@@ -76,7 +80,9 @@ export default function HomeScreen() {
       const all = await produceApi.getAll();
       setFeatured(all.slice(0, 8));
     } catch (err: any) {
-      setErrorMsg(err.data?.message || err.message || 'Could not load produce.');
+      const msg = getErrorMessage(err, 'Could not load produce.');
+      setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not load produce', text2: msg });
     }
   }, []);
 
@@ -84,6 +90,13 @@ export default function HomeScreen() {
     setLoading(true);
     loadFeatured().finally(() => setLoading(false));
   }, [loadFeatured]);
+
+  useEffect(() => {
+    notificationsApi
+      .getAll()
+      .then((data) => setHasUnreadNotifications(data.some((n) => n.isUnread)))
+      .catch(() => {});
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -158,9 +171,13 @@ export default function HomeScreen() {
               {totalUnread > 0 && <View style={styles.badgeDot} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionIconBtn} hitSlop={6}>
+            <TouchableOpacity
+              style={styles.actionIconBtn}
+              onPress={() => router.push('/notifications')}
+              hitSlop={6}
+            >
               <Ionicons name="notifications-outline" size={22} color="#1A1A1A" />
-              <View style={styles.bellDot} />
+              {hasUnreadNotifications && <View style={styles.bellDot} />}
             </TouchableOpacity>
           </View>
         </View>

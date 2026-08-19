@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import { MapPin, Search, Truck } from 'lucide-react'
 
 import { farmerApi, LE, type FarmerOrder } from '@/lib/farmer/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -76,8 +78,9 @@ export function OrdersView() {
       setSales((prev) =>
         prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)),
       )
-    } catch {
-      // Ignore
+      toast.success('Order status updated.')
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not update the order status. Please try again.'))
     } finally {
       setLoading(false)
     }

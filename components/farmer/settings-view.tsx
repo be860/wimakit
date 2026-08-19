@@ -1,12 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Camera, Check, FileImage, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { Camera, FileImage, Loader2 } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { authApi } from '@/lib/auth/api'
 import { farmerApi } from '@/lib/farmer/api'
-import { ApiClientError } from '@/lib/api-client'
+import { ApiClientError, getErrorMessage } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -120,7 +121,6 @@ function ProfileTab({
   refreshUser: ReturnType<typeof useAuth>['refreshUser']
 }) {
   const [saving, setSaving] = React.useState(false)
-  const [saved, setSaved] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [district, setDistrict] = React.useState(user?.district || SIERRA_LEONE_DISTRICTS[0])
 
@@ -162,10 +162,10 @@ function ProfileTab({
                 community: (fd.get('community') as string) || '',
               })
               await refreshUser()
-              setSaved(true)
-              setTimeout(() => setSaved(false), 3000)
+              toast.success('Profile updated.')
             } catch (err) {
               setError(err instanceof ApiClientError ? err.message : 'Could not save your changes.')
+              toast.error(getErrorMessage(err, 'Could not save your changes. Please try again.'))
             } finally {
               setSaving(false)
             }
@@ -226,12 +226,6 @@ function ProfileTab({
                 {saving && <Loader2 className="size-4 animate-spin" data-icon="inline-start" />}
                 Save changes
               </Button>
-              {saved && (
-                <span className="flex items-center gap-1.5 text-xs text-farmer">
-                  <Check className="size-3.5" aria-hidden />
-                  Profile updated
-                </span>
-              )}
             </div>
           </FieldGroup>
         </form>
@@ -384,7 +378,6 @@ function FarmTab({
 }) {
   const [crops, setCrops] = React.useState<string[]>([])
   const [saving, setSaving] = React.useState(false)
-  const [saved, setSaved] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -416,10 +409,10 @@ function FarmTab({
                 primaryCrops: crops.join(', '),
               })
               await refreshUser()
-              setSaved(true)
-              setTimeout(() => setSaved(false), 3000)
+              toast.success('Farm details updated.')
             } catch (err) {
               setError(err instanceof ApiClientError ? err.message : 'Could not save farm details.')
+              toast.error(getErrorMessage(err, 'Could not save your changes. Please try again.'))
             } finally {
               setSaving(false)
             }
@@ -492,12 +485,6 @@ function FarmTab({
                 {saving && <Loader2 className="size-4 animate-spin" data-icon="inline-start" />}
                 Save farm details
               </Button>
-              {saved && (
-                <span className="flex items-center gap-1.5 text-xs text-farmer">
-                  <Check className="size-3.5" aria-hidden />
-                  Farm details updated
-                </span>
-              )}
             </div>
           </FieldGroup>
         </form>
@@ -580,7 +567,6 @@ function FarmPhotoPanel({
 
 function SecurityTab() {
   const [saving, setSaving] = React.useState(false)
-  const [saved, setSaved] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   return (
@@ -607,11 +593,11 @@ function SecurityTab() {
           setSaving(true)
           try {
             await authApi.changePassword({ currentPassword, newPassword })
-            setSaved(true)
             e.currentTarget.reset()
-            setTimeout(() => setSaved(false), 3000)
+            toast.success('Password updated.')
           } catch (err) {
             setError(err instanceof ApiClientError ? err.message : 'Could not change your password.')
+            toast.error(getErrorMessage(err, 'Could not save your changes. Please try again.'))
           } finally {
             setSaving(false)
           }
@@ -642,12 +628,6 @@ function SecurityTab() {
               {saving && <Loader2 className="size-4 animate-spin" data-icon="inline-start" />}
               Update password
             </Button>
-            {saved && (
-              <span className="flex items-center gap-1.5 text-xs text-farmer">
-                <Check className="size-3.5" aria-hidden />
-                Password changed
-              </span>
-            )}
           </div>
         </FieldGroup>
       </form>

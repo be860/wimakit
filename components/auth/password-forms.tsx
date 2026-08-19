@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
   CircleCheck,
@@ -47,6 +48,7 @@ export function ForgotPasswordForm() {
     } finally {
       setPending(false)
       setSent(true)
+      toast.success('Password reset email sent.')
     }
   }
 
@@ -162,9 +164,12 @@ export function ChangePasswordForm() {
       })
       setPending(false)
       setDone(true)
+      toast.success('Password changed successfully.')
     } catch (err: any) {
       setPending(false)
-      setErrorMessage(err.data?.message || err.message || 'Could not reset your password. Please try again.')
+      const msg = err.data?.message || err.message || 'Could not reset your password. Please try again.'
+      setErrorMessage(msg)
+      toast.error(msg)
     }
   }
 

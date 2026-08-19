@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../../constants/theme';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { PillTextInput } from '../../components/common/PillTextInput';
@@ -17,6 +18,7 @@ import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { useAuth } from '../../context/auth-context';
 import { GoogleLogo } from '../../components/common/GoogleLogo';
 import { useGoogleAuth } from '../../hooks/use-google-auth';
+import { getErrorMessage } from '../../services/api-client';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -36,9 +38,9 @@ export default function SignInScreen() {
         await googleSignIn(idToken);
         router.replace('/(tabs)');
       } catch (err: any) {
-        setErrorMsg(
-          err.data?.message || err.message || 'Google sign-in failed. Please try again.'
-        );
+        const msg = getErrorMessage(err, 'Google sign-in failed. Please try again.');
+        setErrorMsg(msg);
+        Toast.show({ type: 'error', text1: 'Google sign-in failed', text2: msg });
       } finally {
         setGoogleLoading(false);
       }
@@ -65,11 +67,9 @@ export default function SignInScreen() {
       router.replace('/(tabs)');
     } catch (err: any) {
       setLoading(false);
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Invalid email or password. Please try again.';
+      const msg = getErrorMessage(err, 'Invalid email or password. Please try again.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Sign-in failed', text2: msg });
     }
   };
 

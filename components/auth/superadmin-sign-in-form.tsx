@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Eye, EyeOff, KeyRound, Loader2, Lock, ShieldCheck, TriangleAlert } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -60,6 +61,7 @@ export function SuperAdminSignInForm() {
       setPending(false);
       const msg = err.data?.message || err.message || 'Authentication failed. Verify credentials.';
       setErrorMessage(msg);
+      toast.error(msg);
     }
   }
 
@@ -94,6 +96,7 @@ export function SuperAdminSignInForm() {
       setPending(false);
       const msg = err.data?.message || err.message || 'Failed to update password.';
       setErrorMessage(msg);
+      toast.error(msg);
     }
   }
 

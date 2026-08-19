@@ -160,6 +160,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return (await response.text()) as unknown as T;
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiClientError) return err.data?.message || err.message || fallback;
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+}
+
 export const apiClient = {
   get: <T>(endpoint: string, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'GET' }),
   post: <T>(endpoint: string, body?: any, options?: RequestInit) =>

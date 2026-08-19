@@ -1,10 +1,12 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import { CornerDownRight, Send } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { farmerApi, type FarmerReview, type RatingDistribution } from '@/lib/farmer/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,8 +43,9 @@ export function ReviewsView() {
       setReviews((prev) =>
         prev.map((r) => (r.id === reviewId ? { ...r, reply: text } : r)),
       )
-    } catch {
-      // Ignore
+      toast.success('Reply posted.')
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not post your reply. Please try again.'))
     } finally {
       setLoading(false)
     }

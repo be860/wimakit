@@ -12,12 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { useFavorites } from '../../context/favorites-context';
 import { PRODUCE_CATEGORIES } from '../../constants/produce-categories';
 import { produceApi, Produce } from '../../services/produce-api';
 import { ProduceCard } from '../../components/produce/ProduceCard';
 import { ProduceDetailsModal } from '../../components/produce/ProduceDetailsModal';
+import { getErrorMessage } from '../../services/api-client';
 
 type SortOption = 'recent' | 'price_asc' | 'price_desc';
 
@@ -52,7 +54,9 @@ export default function BrowseScreen() {
       });
       setItems(results);
     } catch (err: any) {
-      setErrorMsg(err.data?.message || err.message || 'Could not load produce.');
+      const msg = getErrorMessage(err, 'Could not load produce.');
+      setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not load produce', text2: msg });
     } finally {
       setLoading(false);
     }

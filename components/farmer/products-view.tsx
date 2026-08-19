@@ -3,10 +3,12 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { AlertTriangle, ImagePlus, PackagePlus, Pencil, Search, Trash2 } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { farmerApi, LE, type FarmerProduce } from '@/lib/farmer/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -106,10 +108,11 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
       if (created) {
         setRows((prev) => [created, ...prev])
         setAddOpen(false)
+        toast.success('Product created successfully.')
         router.push(`/farmer/products/${created.id}`)
       }
-    } catch {
-      // Ignore error
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not create the product. Please try again.'))
     }
   }
 
@@ -136,9 +139,10 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
       if (updated) {
         setRows((prev) => prev.map((p) => (p.id === id ? updated : p)))
         setEditTarget(null)
+        toast.success('Product updated successfully.')
       }
-    } catch {
-      // Ignore error
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not update the product. Please try again.'))
     }
   }
 
@@ -149,8 +153,10 @@ export function ProductsView({ openNew }: { openNew?: boolean }) {
       await farmerApi.deleteProduce(deleteTarget.id)
       setRows((prev) => prev.filter((p) => p.id !== deleteTarget.id))
       setDeleteTarget(null)
-    } catch {
+      toast.success('Product deleted.')
+    } catch (err) {
       // Keep dialog open so the farmer can retry
+      toast.error(getErrorMessage(err, 'Could not delete the product. Please try again.'))
     } finally {
       setDeleting(false)
     }

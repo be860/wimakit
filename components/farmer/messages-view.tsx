@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import { ArrowLeft, Check, CheckCheck, Lock, Paperclip, Send } from 'lucide-react'
 
 import { farmerApi, type Conversation, type Message } from '@/lib/farmer/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -75,8 +77,8 @@ export function MessagesView() {
         ])
       }
       setDraft('')
-    } catch {
-      // Ignore error
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not send your message. Please try again.'))
     } finally {
       setLoading(false)
     }

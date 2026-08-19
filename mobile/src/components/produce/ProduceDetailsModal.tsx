@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,19 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { Produce, formatLE } from '../../services/produce-api';
 import { useCart } from '../../context/cart-context';
 import { useFavorites } from '../../context/favorites-context';
 import { useChat } from '../../context/chat-context';
 import { reviewsApi, Review } from '../../services/reviews-api';
+import { getErrorMessage } from '../../services/api-client';
 
 interface ProduceDetailsModalProps {
   produce: Produce | null;
@@ -27,17 +32,28 @@ interface ProduceDetailsModalProps {
 }
 
 export function ProduceDetailsModal({
-  produce,
+  produce: produceProp,
   visible,
   onClose,
   onOpenChat,
 }: ProduceDetailsModalProps) {
+  const router = useRouter();
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { sendMessage } = useChat();
 
   const [quantity, setQuantity] = useState(1);
   const [sendingChat, setSendingChat] = useState(false);
+
+  // Cache the last-selected produce so the modal keeps rendering full
+  // details while it plays its close animation. Callers null out `produce`
+  // in the same update that flips `visible` to false, and bailing out on a
+  // null produce immediately (below) would unmount <Modal> before it gets
+  // to slide away, making the close feel like a hard cut instead of a slide.
+  const [displayProduce, setDisplayProduce] = useState<Produce | null>(produceProp);
+  useLayoutEffect(() => {
+    if (produceProp) setDisplayProduce(produceProp);
+  }, [produceProp]);
 
   // Reviews state
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -50,11 +66,11 @@ export function ProduceDetailsModal({
 
   // Reset quantity and fetch reviews when produce changes
   useEffect(() => {
-    if (produce) {
-      setQuantity(produce.quantity > 0 ? 1 : 0);
-      loadReviews(produce.farmerId);
+    if (produceProp) {
+      setQuantity(produceProp.quantity > 0 ? 1 : 0);
+      loadReviews(produceProp.farmerId);
     }
-  }, [produce?.id]);
+  }, [produceProp?.id]);
 
   const loadReviews = async (farmerId: number) => {
     setLoadingReviews(true);
@@ -68,7 +84,8 @@ export function ProduceDetailsModal({
     }
   };
 
-  if (!produce) return null;
+  if (!displayProduce) return null;
+  const produce = displayProduce;
 
   const favorite = isFavorite(produce.id);
   const inStock = produce.quantity > 0 && produce.status === 'Live';
@@ -87,7 +104,13 @@ export function ProduceDetailsModal({
       `${quantity} × ${produce.name} added to your shopping cart.`,
       [
         { text: 'Continue Shopping', style: 'cancel', onPress: onClose },
-        { text: 'View Cart', onPress: onClose },
+        {
+          text: 'View Cart',
+          onPress: () => {
+            onClose();
+            router.push('/(tabs)/cart');
+          },
+        },
       ]
     );
   };
@@ -101,8 +124,12 @@ export function ProduceDetailsModal({
         produce.name,
         produce.id
       );
-    } catch {
-      // ignore send errors
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not send message',
+        text2: getErrorMessage(err, 'Please try messaging the farmer again.'),
+      });
     }
     onClose();
     if (onOpenChat) {
@@ -132,11 +159,17 @@ export function ProduceDetailsModal({
       setComment('');
       setRating(5);
 
-      Alert.alert('Review Submitted! ⭐', 'Thank you for your feedback.');
+      Toast.show({
+        type: 'success',
+        text1: 'Review submitted',
+        text2: 'Thank you for your feedback.',
+      });
       loadReviews(produce.farmerId);
     } catch (err: any) {
       setSubmittingReview(false);
-      setReviewError(err?.data?.message || err?.message || 'Could not submit review.');
+      const msg = getErrorMessage(err, 'Could not submit review.');
+      setReviewError(msg);
+      Toast.show({ type: 'error', text1: 'Could not submit review', text2: msg });
     }
   };
 
@@ -411,7 +444,15 @@ export function ProduceDetailsModal({
         transparent
         onRequestClose={() => setWriteModalOpen(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={styles.writeModalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.writeModalContent}>
             <View style={styles.writeModalHeader}>
               <Text style={styles.writeModalTitle} allowFontScaling={false}>
@@ -471,7 +512,8 @@ export function ProduceDetailsModal({
               )}
             </TouchableOpacity>
           </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
@@ -902,8 +944,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  writeModalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   writeModalContent: {
     backgroundColor: COLORS.surface,

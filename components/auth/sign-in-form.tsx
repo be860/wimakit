@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ShieldAlert, TriangleAlert } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/auth-provider';
@@ -50,6 +51,7 @@ export function SignInForm() {
     } catch (err: any) {
       setPending(false);
       const msg = err.data?.message || err.message || 'Incorrect email or password.';
+      toast.error(msg);
       if (msg.toLowerCase().includes('suspended')) {
         setIsSuspended(true);
       } else {

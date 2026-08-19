@@ -15,11 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { useAuth } from '../../context/auth-context';
 import { PillTextInput } from '../../components/common/PillTextInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
-import { apiClient } from '../../services/api-client';
+import { apiClient, getErrorMessage } from '../../services/api-client';
 import { fraudApi, FraudCase } from '../../services/fraud-api';
 
 export default function ProfileScreen() {
@@ -41,9 +42,11 @@ export default function ProfileScreen() {
     fraudApi
       .getMyReports()
       .then(setFraudReports)
-      .catch((err: any) =>
-        setReportsError(err?.data?.message || err?.message || 'Could not load your reports.')
-      )
+      .catch((err: any) => {
+        const msg = getErrorMessage(err, 'Could not load your reports.');
+        setReportsError(msg);
+        Toast.show({ type: 'error', text1: 'Could not load fraud reports', text2: msg });
+      })
       .finally(() => setLoadingReports(false));
   };
 
@@ -84,10 +87,11 @@ export default function ProfileScreen() {
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(
-        'Photo Access Needed',
-        'Please allow WiMakit to access your photos so you can set a profile picture.'
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Photo access needed',
+        text2: 'Please allow WiMakit to access your photos so you can set a profile picture.',
+      });
       return;
     }
 
@@ -125,7 +129,9 @@ export default function ProfileScreen() {
       await refreshUser();
     } catch (err: any) {
       setLocalPhotoUri(null);
-      setErrorMsg(err.data?.message || err.message || 'Could not upload photo. Please try again.');
+      const msg = getErrorMessage(err, 'Could not upload photo. Please try again.');
+      setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not upload photo', text2: msg });
     } finally {
       setUploadingPhoto(false);
     }
@@ -152,11 +158,16 @@ export default function ProfileScreen() {
       setSaving(false);
       setEditModalOpen(false);
 
-      Alert.alert('Profile Updated 🎉', 'Your profile details have been updated successfully.');
+      Toast.show({
+        type: 'success',
+        text1: 'Profile updated',
+        text2: 'Your profile details have been updated successfully.',
+      });
     } catch (err: any) {
       setSaving(false);
-      const msg = err.data?.message || err.message || 'Could not update profile. Please try again.';
+      const msg = getErrorMessage(err, 'Could not update profile. Please try again.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not update profile', text2: msg });
     }
   };
 

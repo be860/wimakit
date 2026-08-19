@@ -8,21 +8,22 @@ export interface Order {
   farmerId: number;
   produceId: number;
   produceName: string;
+  produceImageUrl?: string;
   farmerName: string;
+  farmerPhone?: string;
   quantity: number;
+  quantityText: string;
   amount: number;
   district?: string;
   deliveryAddress?: string;
   paymentRef?: string;
   paymentMethod: string;
-  accountNumber: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Completed';
   createdAt: string;
 }
 
 export interface PlaceOrderRequest {
   produceId: number;
-  farmerId: number;
   quantity: number;
   paymentMethod?: string;
   accountNumber?: string;

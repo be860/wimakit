@@ -17,6 +17,12 @@ export class ApiClientError extends Error {
   }
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiClientError) return err.data?.message || err.message || fallback;
+  if (err instanceof Error) return err.message || fallback;
+  return fallback;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 

@@ -2,27 +2,34 @@ import { apiClient } from './api-client';
 
 export interface FraudCase {
   id: number;
-  orderId: string;
+  caseNumber: string;
+  orderId?: number;
+  orderNumber?: string;
+  produceName: string;
+  farmerName: string;
   reason: string;
+  amount: number;
   status: string;
   reportedAt: string;
+  resolvedAt?: string;
 }
 
 export interface ReportFraudRequest {
-  orderId: string;
+  orderId: number;
   reason: string;
+}
+
+export interface ReportFraudResponse {
+  fraudCase: FraudCase;
+  message: string;
 }
 
 export const fraudApi = {
   /** Report a fraud case for an order */
   reportFraud: (request: ReportFraudRequest) =>
-    apiClient.post<FraudCase>('/api/fraud-cases', request),
+    apiClient.post<ReportFraudResponse>('/api/fraud/report', request),
 
-  /** Get buyer's reported fraud cases */
-  getBuyerFraudCases: () => apiClient.get<FraudCase[]>('/api/fraud-cases/buyer'),
-
-  /** Alias for buyer fraud reports */
-  getMyReports: (): Promise<FraudCase[]> =>
-    apiClient.get<FraudCase[]>('/api/fraud-cases/buyer').catch(() => []),
+  /** Buyer's own fraud report history */
+  getMyReports: () => apiClient.get<FraudCase[]>('/api/fraud/my-reports'),
 };
 

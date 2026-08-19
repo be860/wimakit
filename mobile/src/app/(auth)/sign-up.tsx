@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../../constants/theme';
 import { BUSINESS_TYPES, DISTRICTS } from '../../constants/buyer';
 import { AuthCard } from '../../components/auth/AuthCard';
@@ -18,6 +19,7 @@ import { PrimaryButton } from '../../components/common/PrimaryButton';
 import { GoogleLogo } from '../../components/common/GoogleLogo';
 import { useAuth } from '../../context/auth-context';
 import { useGoogleAuth } from '../../hooks/use-google-auth';
+import { getErrorMessage } from '../../services/api-client';
 
 // Mirrors the backend's [RegularExpression] on FirstName / LastName. Validating
 // locally keeps the user out of an ASP.NET ModelState 400 for a typo.
@@ -72,9 +74,9 @@ export default function SignUpScreen() {
         await googleSignIn(idToken);
         router.replace('/(tabs)');
       } catch (err: any) {
-        setErrorMsg(
-          err.data?.message || err.message || 'Google sign-up failed. Please try again.'
-        );
+        const msg = getErrorMessage(err, 'Google sign-up failed. Please try again.');
+        setErrorMsg(msg);
+        Toast.show({ type: 'error', text1: 'Google sign-up failed', text2: msg });
       } finally {
         setGoogleLoading(false);
       }
@@ -159,11 +161,9 @@ export default function SignUpScreen() {
       });
     } catch (err: any) {
       setLoading(false);
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Registration failed. Please check your details.';
+      const msg = getErrorMessage(err, 'Registration failed. Please check your details.');
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Registration failed', text2: msg });
     }
   };
 

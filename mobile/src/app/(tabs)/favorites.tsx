@@ -10,10 +10,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { useFavorites } from '../../context/favorites-context';
 import { produceApi, Produce } from '../../services/produce-api';
 import { ProduceCard } from '../../components/produce/ProduceCard';
+import { getErrorMessage } from '../../services/api-client';
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -37,6 +39,11 @@ export default function FavoritesScreen() {
         setFavorites(filtered);
       } catch (err) {
         console.warn('Could not load favorites:', err);
+        Toast.show({
+          type: 'error',
+          text1: 'Could not load your favorites',
+          text2: getErrorMessage(err, 'Please try again.'),
+        });
       } finally {
         setLoading(false);
       }

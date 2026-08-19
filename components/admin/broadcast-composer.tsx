@@ -1,9 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import { Send } from 'lucide-react'
 
 import { adminApi, NotificationItem } from '@/lib/admin/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,7 +33,6 @@ export function BroadcastComposer({ onSent }: Props) {
   const [body, setBody] = React.useState('')
   const [targetRole, setTargetRole] = React.useState('all')
   const [sending, setSending] = React.useState(false)
-  const [sent, setSent] = React.useState(false)
   const remaining = 160 - body.length
 
   async function handleSend() {
@@ -51,10 +52,9 @@ export function BroadcastComposer({ onSent }: Props) {
       setTitle('')
       setBody('')
       setTargetRole('all')
-      setSent(true)
-      setTimeout(() => setSent(false), 3000)
-    } catch {
-      // TODO: show error toast
+      toast.success('Broadcast sent.')
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not send the broadcast. Please try again.'))
     } finally {
       setSending(false)
     }
@@ -114,9 +114,6 @@ export function BroadcastComposer({ onSent }: Props) {
           <FieldDescription>{remaining} characters remaining</FieldDescription>
         </Field>
         <div className="flex items-center justify-end gap-2">
-          {sent && (
-            <span className="text-sm text-green-600 font-medium">Broadcast sent!</span>
-          )}
           <Button
             onClick={handleSend}
             disabled={sending || !title.trim() || !body.trim()}

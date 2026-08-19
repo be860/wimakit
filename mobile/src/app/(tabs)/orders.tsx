@@ -18,12 +18,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { formatLE } from '../../services/produce-api';
 import { ordersApi, Order } from '../../services/orders-api';
 import { fraudApi, FraudCase } from '../../services/fraud-api';
 import { reviewsApi } from '../../services/reviews-api';
 import { useChat } from '../../context/chat-context';
+import { getErrorMessage } from '../../services/api-client';
 
 const MIN_REASON_LENGTH = 10;
 const MAX_REASON_LENGTH = 1000;
@@ -81,10 +83,16 @@ export default function OrdersScreen() {
 
       setSubmittingReview(false);
       setReviewModalOrder(null);
-      Alert.alert('Review Submitted! ⭐', 'Thank you for rating your order.');
+      Toast.show({
+        type: 'success',
+        text1: 'Review submitted',
+        text2: 'Thank you for rating your order.',
+      });
     } catch (err: any) {
       setSubmittingReview(false);
-      setReviewError(err?.data?.message || err?.message || 'Could not submit review.');
+      const msg = getErrorMessage(err, 'Could not submit review.');
+      setReviewError(msg);
+      Toast.show({ type: 'error', text1: 'Could not submit review', text2: msg });
     }
   };
 
@@ -104,7 +112,9 @@ export default function OrdersScreen() {
       });
       setReportedByOrder(map);
     } catch (err: any) {
-      setErrorMsg(err.data?.message || err.message || 'Could not load your orders.');
+      const msg = getErrorMessage(err, 'Could not load your orders.');
+      setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not load orders', text2: msg });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -171,7 +181,11 @@ export default function OrdersScreen() {
       );
       router.push('/(tabs)/messages');
     } catch (err: any) {
-      Alert.alert('Message Not Sent', err?.data?.message || err?.message || 'Please try again.');
+      Toast.show({
+        type: 'error',
+        text1: 'Message not sent',
+        text2: getErrorMessage(err, 'Please try again.'),
+      });
     } finally {
       setMessagingId(null);
     }
@@ -196,15 +210,18 @@ export default function OrdersScreen() {
     setReportError(null);
 
     try {
-      const result = await fraudApi.reportFraud({ orderId: String(reportModalOrder.id), reason });
-      setReportedByOrder((prev) => ({ ...prev, [reportModalOrder.id]: result as any }));
+      const result = await fraudApi.reportFraud({ orderId: reportModalOrder.id, reason });
+      setReportedByOrder((prev) => ({ ...prev, [reportModalOrder.id]: result.fraudCase }));
       setReportModalOrder(null);
-      Alert.alert(
-        'Report Submitted',
-        `Your report for Order #${reportModalOrder.orderNumber} has been recorded.`
-      );
+      Toast.show({
+        type: 'success',
+        text1: 'Report submitted',
+        text2: result.message,
+      });
     } catch (err: any) {
-      setReportError(err?.data?.message || err?.message || 'Could not submit your report. Please try again.');
+      const msg = getErrorMessage(err, 'Could not submit your report. Please try again.');
+      setReportError(msg);
+      Toast.show({ type: 'error', text1: 'Could not submit report', text2: msg });
     } finally {
       setSubmittingReport(false);
     }

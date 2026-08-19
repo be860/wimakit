@@ -3,9 +3,11 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { ArrowLeft, Check, EyeOff, ImageOff, Loader2, Pencil, Trash2 } from 'lucide-react'
 
 import { adminApi, ProductAdmin, LE } from '@/lib/admin/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Panel, StatusBadge } from '@/components/admin/primitives'
 import { DeleteProductDialog, EditProductDialog } from '@/components/admin/products-table'
@@ -43,12 +45,24 @@ export default function AdminProductDetailPage({
 
   async function updateStatus(status: string) {
     if (!product) return
+    const wasPending = product.status === 'Pending'
     setUpdating(true)
     try {
       await adminApi.updateProductStatus(product.id, status)
       setProduct((prev) => (prev ? { ...prev, status } : prev))
-    } catch {
-      // TODO: show error toast
+      const successText =
+        status === 'Live'
+          ? wasPending
+            ? 'Product approved.'
+            : 'Product is now visible to buyers.'
+          : status === 'Hidden'
+            ? 'Product hidden.'
+            : status === 'Rejected'
+              ? 'Product rejected.'
+              : 'Product status updated.'
+      toast.success(successText)
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not update the product status. Please try again.'))
     } finally {
       setUpdating(false)
     }
@@ -65,8 +79,9 @@ export default function AdminProductDetailPage({
     try {
       await adminApi.deleteProduct(product.id)
       router.push('/admin/products')
-    } catch {
+    } catch (err) {
       setDeleting(false)
+      toast.error(getErrorMessage(err, 'Could not delete the product. Please try again.'))
     }
   }
 

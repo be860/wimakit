@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
-import { apiClient } from '../../services/api-client';
+import { apiClient, getErrorMessage } from '../../services/api-client';
 
 // ────────────────────────────────────────────────────────────────
 // Types mirroring backend DTOs
@@ -88,7 +89,9 @@ export default function MessagesScreen() {
       const data = await apiClient.get<ConversationDTO[]>('/api/messages/conversations');
       setConversations(data);
     } catch (err: any) {
-      setErrorMsg(err.data?.message || err.message || 'Could not load conversations.');
+      const msg = getErrorMessage(err, 'Could not load conversations.');
+      setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not load conversations', text2: msg });
     }
   }, []);
 
@@ -132,6 +135,11 @@ export default function MessagesScreen() {
       );
     } catch (err: any) {
       setMessages([]);
+      Toast.show({
+        type: 'error',
+        text1: 'Could not load this conversation',
+        text2: getErrorMessage(err, 'Please try again.'),
+      });
     } finally {
       setChatLoading(false);
     }
@@ -165,9 +173,14 @@ export default function MessagesScreen() {
             : c
         )
       );
-    } catch {
+    } catch (err) {
       // Put text back if send fails
       setInputText(text);
+      Toast.show({
+        type: 'error',
+        text1: 'Message not sent',
+        text2: getErrorMessage(err, 'Please try again.'),
+      });
     } finally {
       setSending(false);
     }

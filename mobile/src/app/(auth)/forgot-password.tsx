@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../../constants/theme';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { PillTextInput } from '../../components/common/PillTextInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
-import { apiClient } from '../../services/api-client';
+import { apiClient, getErrorMessage } from '../../services/api-client';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -37,6 +38,11 @@ export default function ForgotPasswordScreen() {
       await apiClient.post('/api/auth/forgot-password', { email: email.trim() });
       setSuccessMsg('A password reset code has been sent to your email. Check your inbox.');
       setLoading(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Reset code sent',
+        text2: 'Check your inbox for the password reset code.',
+      });
 
       // Navigate to reset screen after short delay
       setTimeout(() => {
@@ -47,11 +53,12 @@ export default function ForgotPasswordScreen() {
       }, 1500);
     } catch (err: any) {
       setLoading(false);
-      const msg =
-        err.data?.message ||
-        err.message ||
-        'Could not send reset code. Please check your email and try again.';
+      const msg = getErrorMessage(
+        err,
+        'Could not send reset code. Please check your email and try again.'
+      );
       setErrorMsg(msg);
+      Toast.show({ type: 'error', text1: 'Could not send reset code', text2: msg });
     }
   };
 

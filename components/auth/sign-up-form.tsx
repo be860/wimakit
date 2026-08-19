@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
   ArrowRight,
@@ -224,6 +225,7 @@ export function SignUpForm() {
       setPending(false)
       const msg = err.data?.message || err.message || 'Registration failed. Please check your details.'
       setErrorMsg(msg)
+      toast.error(msg)
     }
   }
 

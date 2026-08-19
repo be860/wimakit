@@ -2,9 +2,11 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { ArrowLeft, ImageIcon, Loader2 } from 'lucide-react'
 
 import { adminApi, FraudCase, LE } from '@/lib/admin/api'
+import { getErrorMessage } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
@@ -38,8 +40,15 @@ export default function FraudCaseDetailPage({
     try {
       await adminApi.updateFraudCase(fraudCase.id, status)
       setFraudCase((prev) => prev ? { ...prev, status } : prev)
-    } catch {
-      // TODO: show error toast
+      toast.success(
+        status === 'Resolved'
+          ? 'Fraud case marked resolved.'
+          : status === 'Rejected'
+            ? 'Fraud case rejected.'
+            : 'Fraud case updated.',
+      )
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not update the fraud case. Please try again.'))
     } finally {
       setUpdating(false)
     }
