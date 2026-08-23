@@ -85,6 +85,14 @@ export function MessagesView() {
   // place) after every realtime event keeps last-message previews, ordering
   // and unread counts exactly in sync with the server — same approach as the
   // mobile app's messages screen.
+  // The chat hub echoes a sent message back to the sender's own connection
+  // too (it's pushed to both participants' groups), and that push can win
+  // the race against the REST response below — dedup by id so a message we
+  // just sent doesn't render twice.
+  const appendMessage = React.useCallback((msg: Message) => {
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+  }, [])
+
   const loadConversations = React.useCallback(() => {
     return farmerApi
       .getConversations()
@@ -115,7 +123,7 @@ export function MessagesView() {
           activeUserId != null && (msg.senderId === activeUserId || msg.receiverId === activeUserId)
 
         if (belongsToOpenThread) {
-          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+          appendMessage(msg)
           if (msg.senderId === activeUserId && msg.receiverId === myUserId) {
             farmerApi.markMessageRead(msg.id).catch(() => {})
           }
@@ -131,12 +139,15 @@ export function MessagesView() {
         return
       }
 
-      // 'read' — flip read receipts for messages in the open thread.
-      setMessages((prev) =>
-        prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m)),
-      )
+      if (event.type === 'read') {
+        // Flip read receipts for messages in the open thread.
+        setMessages((prev) =>
+          prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m)),
+        )
+      }
+      // Other event types (orders, notifications) are handled elsewhere.
     })
-  }, [activeUserId, myUserId, subscribeToRealtime, loadConversations])
+  }, [activeUserId, myUserId, subscribeToRealtime, loadConversations, appendMessage])
 
   React.useEffect(() => {
     if (!activeUserId) return
@@ -175,7 +186,7 @@ export function MessagesView() {
     try {
       const newMsg = await farmerApi.sendMessage(activeUserId, { content: text })
       if (newMsg) {
-        setMessages((prev) => [...prev, newMsg])
+        appendMessage(newMsg)
       } else {
         setMessages((prev) => [
           ...prev,
@@ -229,7 +240,7 @@ export function MessagesView() {
         messageType: 'image',
         attachmentUrl: uploaded.url,
       })
-      setMessages((prev) => [...prev, newMsg])
+      appendMessage(newMsg)
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not send the image. Please try again.'))
     } finally {
@@ -311,7 +322,7 @@ export function MessagesView() {
         attachmentUrl: uploaded.url,
         attachmentDurationSeconds: Math.max(1, Math.round(durationSeconds)),
       })
-      setMessages((prev) => [...prev, newMsg])
+      appendMessage(newMsg)
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not send the voice message. Please try again.'))
     } finally {

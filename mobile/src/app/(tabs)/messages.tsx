@@ -212,11 +212,14 @@ export default function MessagesScreen() {
         return;
       }
 
-      // 'read' — flip read receipts for messages in the open thread; a no-op
-      // if none of the ids are currently displayed.
-      setMessages((prev) =>
-        prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m))
-      );
+      if (event.type === 'read') {
+        // Flip read receipts for messages in the open thread; a no-op if none
+        // of the ids are currently displayed.
+        setMessages((prev) =>
+          prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m))
+        );
+      }
+      // Other event types (orders, notifications) are handled elsewhere.
     });
 
     return unsubscribe;
@@ -267,8 +270,11 @@ export default function MessagesScreen() {
     setActiveConv(null);
   };
 
+  // The chat hub echoes a sent message back to the sender's own connection
+  // too (it's pushed to both participants' groups), and that push can win the
+  // race against this REST response — dedup by id so it doesn't render twice.
   const appendSentMessage = (sent: MessageDTO) => {
-    setMessages((prev) => [...prev, sent]);
+    setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     setConversations((prev) =>
