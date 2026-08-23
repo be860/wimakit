@@ -272,7 +272,7 @@ export default function CartScreen() {
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.checkoutModalContent}>
             <View style={styles.modalHeader}>
@@ -287,7 +287,7 @@ export default function CartScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.checkoutSummaryText} allowFontScaling={false}>
                 {itemCount} item{itemCount === 1 ? '' : 's'} · Total {formatLE(totalAmount + DELIVERY_FEE)}
               </Text>
