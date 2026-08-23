@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -303,7 +304,15 @@ export default function ProfileScreen() {
 
       {/* Profile Edit Modal */}
       <Modal visible={editModalOpen} animationType="slide" transparent onRequestClose={() => setEditModalOpen(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+        <ScrollView
+          contentContainerStyle={styles.editModalScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.editModalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle} allowFontScaling={false}>
@@ -402,7 +411,8 @@ export default function ProfileScreen() {
               style={styles.saveBtn}
             />
           </View>
-        </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Fraud Reports History Modal */}
@@ -667,6 +677,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  editModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   editModalContent: {
     backgroundColor: COLORS.surface,
