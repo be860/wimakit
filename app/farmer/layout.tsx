@@ -2,6 +2,7 @@ import type React from 'react'
 import type { Metadata } from 'next'
 
 import { FarmerShell } from '@/components/farmer/farmer-shell'
+import { ChatHubProvider } from '@/components/providers/chat-hub-provider'
 
 export const metadata: Metadata = {
   title: {
@@ -17,5 +18,9 @@ export default function FarmerLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <FarmerShell>{children}</FarmerShell>
+  return (
+    <ChatHubProvider>
+      <FarmerShell>{children}</FarmerShell>
+    </ChatHubProvider>
+  )
 }

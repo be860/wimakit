@@ -19,6 +19,8 @@ import {
 
 import { farmerApi, type Conversation, type Message } from '@/lib/farmer/api'
 import { getErrorMessage } from '@/lib/api-client'
+import { useAuth } from '@/components/providers/auth-provider'
+import { useChatHub } from '@/components/providers/chat-hub-provider'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +55,10 @@ function initialsFor(name: string | undefined) {
 }
 
 export function MessagesView() {
+  const { user } = useAuth()
+  const { subscribeToRealtime } = useChatHub()
+  const myUserId = user?.id ?? null
+
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [activeUserId, setActiveUserId] = React.useState<number | null>(null)
   const [messages, setMessages] = React.useState<Message[]>([])
@@ -75,17 +81,62 @@ export function MessagesView() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  React.useEffect(() => {
-    farmerApi
+  // Refetching the full conversation list (rather than patching entries in
+  // place) after every realtime event keeps last-message previews, ordering
+  // and unread counts exactly in sync with the server — same approach as the
+  // mobile app's messages screen.
+  const loadConversations = React.useCallback(() => {
+    return farmerApi
       .getConversations()
       .then((data) => {
         setConversations(data || [])
-        if (data && data.length > 0) {
-          setActiveUserId(data[0].userId)
-        }
+        return data || []
       })
-      .catch(() => setConversations([]))
+      .catch(() => {
+        setConversations([])
+        return []
+      })
   }, [])
+
+  React.useEffect(() => {
+    loadConversations().then((data) => {
+      if (data.length > 0) setActiveUserId(data[0].userId)
+    })
+  }, [loadConversations])
+
+  // Live updates pushed over the SignalR chat hub. `messages` only ever holds
+  // the currently open thread, so edit/delete/read updates can just map over
+  // it by id — a no-op for events belonging to some other conversation.
+  React.useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type === 'received') {
+        const msg = event.message
+        const belongsToOpenThread =
+          activeUserId != null && (msg.senderId === activeUserId || msg.receiverId === activeUserId)
+
+        if (belongsToOpenThread) {
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
+          if (msg.senderId === activeUserId && msg.receiverId === myUserId) {
+            farmerApi.markMessageRead(msg.id).catch(() => {})
+          }
+        }
+        loadConversations()
+        return
+      }
+
+      if (event.type === 'edited' || event.type === 'deleted') {
+        const msg = event.message
+        setMessages((prev) => prev.map((m) => (m.id === msg.id ? msg : m)))
+        loadConversations()
+        return
+      }
+
+      // 'read' — flip read receipts for messages in the open thread.
+      setMessages((prev) =>
+        prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m)),
+      )
+    })
+  }, [activeUserId, myUserId, subscribeToRealtime, loadConversations])
 
   React.useEffect(() => {
     if (!activeUserId) return

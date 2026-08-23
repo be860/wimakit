@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
+import { useChatHub } from '@/components/providers/chat-hub-provider'
 import { farmerApi } from '@/lib/farmer/api'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -101,12 +102,19 @@ export function FarmerSidebar({
 }) {
   const pathname = usePathname()
   const { user } = useAuth()
+  const { subscribeToRealtime } = useChatHub()
   const [counts, setCounts] = React.useState<{
     products?: number
     orders?: number
     messages?: number
     notifications?: number
   }>({})
+
+  const refreshMessageCount = React.useCallback(() => {
+    farmerApi.getConversations()
+      .then((convs) => setCounts((c) => ({ ...c, messages: convs?.reduce((acc, curr) => acc + (curr.unreadCount || 0), 0) || 0 })))
+      .catch(() => {})
+  }, [])
 
   React.useEffect(() => {
     if (user?.id) {
@@ -117,13 +125,21 @@ export function FarmerSidebar({
     farmerApi.getFarmerSales()
       .then((s) => setCounts((c) => ({ ...c, orders: s?.filter((o) => o.status === 'Pending').length || 0 })))
       .catch(() => {})
-    farmerApi.getConversations()
-      .then((convs) => setCounts((c) => ({ ...c, messages: convs?.reduce((acc, curr) => acc + (curr.unreadCount || 0), 0) || 0 })))
-      .catch(() => {})
+    refreshMessageCount()
     farmerApi.getNotifications()
       .then((n) => setCounts((c) => ({ ...c, notifications: n?.filter((item) => item.isUnread).length || 0 })))
       .catch(() => {})
-  }, [user?.id])
+  }, [user?.id, refreshMessageCount])
+
+  // Keep the Messages badge live: a new message pushed over the chat hub, or
+  // the current conversation being marked read, both change the unread total.
+  React.useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type === 'received' || event.type === 'read') {
+        refreshMessageCount()
+      }
+    })
+  }, [subscribeToRealtime, refreshMessageCount])
 
   const farmerPrimaryNav: FarmerNavItem[] = [
     { href: '/farmer', label: 'Dashboard', icon: LayoutDashboard },
