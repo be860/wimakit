@@ -7,6 +7,7 @@ export interface Review {
   farmerId: number;
   buyerId: number;
   buyer: string;
+  buyerProfilePhotoUrl?: string;
   initials: string;
   rating: number;
   comment: string;

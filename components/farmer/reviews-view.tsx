@@ -7,7 +7,7 @@ import { CornerDownRight, Send } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { farmerApi, type FarmerReview, type RatingDistribution } from '@/lib/farmer/api'
 import { getErrorMessage } from '@/lib/api-client'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Panel, StarRating } from '@/components/farmer/primitives'
@@ -119,6 +119,9 @@ export function ReviewsView() {
                 <div className="flex items-start justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2.5">
                     <Avatar className="size-8">
+                      {r.buyerProfilePhotoUrl && (
+                        <AvatarImage src={r.buyerProfilePhotoUrl} alt={r.buyerName} />
+                      )}
                       <AvatarFallback className="bg-secondary text-[11px] text-muted-foreground">
                         {initials}
                       </AvatarFallback>

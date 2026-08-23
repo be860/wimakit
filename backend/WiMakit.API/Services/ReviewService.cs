@@ -8,7 +8,7 @@ namespace WiMakit.API.Services
     public interface IReviewService
     {
         Task<IEnumerable<ReviewDTO>> GetFarmerReviewsAsync(int farmerId);
-        Task<ReviewDTO> CreateReviewAsync(int buyerId, string buyerName, CreateReviewRequest request);
+        Task<ReviewDTO> CreateReviewAsync(int buyerId, CreateReviewRequest request);
         Task<bool> ReplyReviewAsync(int reviewId, int farmerId, string reply);
         Task<IEnumerable<RatingDistributionDTO>> GetRatingDistributionAsync(int farmerId);
     }
@@ -31,24 +31,40 @@ namespace WiMakit.API.Services
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
-            return reviews.Select(r => new ReviewDTO
+            // Resolve the buyer's CURRENT name/photo from the User table rather than
+            // the BuyerName snapshot column — this also self-heals older reviews that
+            // were stored with "Buyer User" (see CreateReviewAsync's history: the
+            // controller used to read a JWT claim that isn't actually issued, so every
+            // review fell back to that placeholder).
+            return reviews.Select(r =>
             {
-                Id = r.Id,
-                ProduceId = r.ProduceId,
-                Product = r.Produce != null ? r.Produce.Name : "General Review",
-                FarmerId = r.FarmerId,
-                BuyerId = r.BuyerId,
-                Buyer = r.BuyerName,
-                Initials = GetInitials(r.BuyerName),
-                Rating = r.Rating,
-                Comment = r.Comment,
-                Reply = r.Reply,
-                Date = r.CreatedAt
+                var displayName = !string.IsNullOrWhiteSpace(r.Buyer?.FullName) ? r.Buyer!.FullName : r.BuyerName;
+                return new ReviewDTO
+                {
+                    Id = r.Id,
+                    ProduceId = r.ProduceId,
+                    Product = r.Produce != null ? r.Produce.Name : "General Review",
+                    FarmerId = r.FarmerId,
+                    BuyerId = r.BuyerId,
+                    Buyer = displayName,
+                    BuyerProfilePhotoUrl = r.Buyer?.ProfilePhotoUrl,
+                    Initials = GetInitials(displayName),
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    Reply = r.Reply,
+                    Date = r.CreatedAt
+                };
             });
         }
 
-        public async Task<ReviewDTO> CreateReviewAsync(int buyerId, string buyerName, CreateReviewRequest request)
+        public async Task<ReviewDTO> CreateReviewAsync(int buyerId, CreateReviewRequest request)
         {
+            // Look the buyer up directly instead of trusting a name passed in from the
+            // controller — that used to come from a JWT "name" claim the token never
+            // actually issues, so every review silently fell back to "Buyer User".
+            var buyer = await _context.Users.FindAsync(buyerId);
+            var buyerName = !string.IsNullOrWhiteSpace(buyer?.FullName) ? buyer!.FullName : "Buyer";
+
             var review = new Review
             {
                 ProduceId = request.ProduceId,
@@ -72,7 +88,8 @@ namespace WiMakit.API.Services
                 Product = produce != null ? produce.Name : "General Review",
                 FarmerId = review.FarmerId,
                 BuyerId = review.BuyerId,
-                Buyer = review.BuyerName,
+                Buyer = buyerName,
+                BuyerProfilePhotoUrl = buyer?.ProfilePhotoUrl,
                 Initials = GetInitials(buyerName),
                 Rating = review.Rating,
                 Comment = review.Comment,

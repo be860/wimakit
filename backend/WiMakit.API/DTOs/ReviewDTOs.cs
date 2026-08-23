@@ -8,6 +8,7 @@ namespace WiMakit.API.DTOs
         public int FarmerId { get; set; }
         public int BuyerId { get; set; }
         public string Buyer { get; set; } = string.Empty;
+        public string? BuyerProfilePhotoUrl { get; set; }
         public string Initials { get; set; } = string.Empty;
         public int Rating { get; set; }
         public string Comment { get; set; } = string.Empty;

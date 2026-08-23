@@ -36,9 +36,7 @@ namespace WiMakit.API.Controllers
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewRequest request)
         {
             var buyerId = GetCurrentUserId();
-            var buyerName = GetCurrentUserName();
-
-            var review = await _reviewService.CreateReviewAsync(buyerId, buyerName, request);
+            var review = await _reviewService.CreateReviewAsync(buyerId, request);
             return Ok(review);
         }
 
@@ -57,11 +55,6 @@ namespace WiMakit.API.Controllers
             var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (int.TryParse(claim, out int id)) return id;
             throw new UnauthorizedAccessException("User ID missing from token.");
-        }
-
-        private string GetCurrentUserName()
-        {
-            return User.FindFirst(ClaimTypes.Name)?.Value ?? "Buyer User";
         }
     }
 }

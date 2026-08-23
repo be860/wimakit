@@ -124,6 +124,7 @@ export interface FarmerReview {
   farmerName: string
   buyerId: number
   buyerName: string
+  buyerProfilePhotoUrl?: string
   rating: number
   comment: string
   reply?: string

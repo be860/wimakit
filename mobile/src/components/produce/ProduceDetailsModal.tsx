@@ -417,7 +417,11 @@ export function ProduceDetailsModal({
                     <View key={rev.id} style={styles.reviewCard}>
                       <View style={styles.reviewHeader}>
                         <View style={styles.buyerAvatar}>
-                          <Text style={styles.buyerAvatarText}>{rev.initials || 'U'}</Text>
+                          {rev.buyerProfilePhotoUrl ? (
+                            <Image source={{ uri: rev.buyerProfilePhotoUrl }} style={styles.buyerAvatarImage} />
+                          ) : (
+                            <Text style={styles.buyerAvatarText}>{rev.initials || 'U'}</Text>
+                          )}
                         </View>
                         <View style={styles.reviewMeta}>
                           <Text style={styles.buyerName}>{rev.buyer}</Text>
@@ -913,6 +917,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  buyerAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   buyerAvatarText: {
     fontSize: 12,
