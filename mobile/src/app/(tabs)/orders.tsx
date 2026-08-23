@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ const MAX_REASON_LENGTH = 1000;
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const { sendMessage } = useChat();
+  const { sendMessage, subscribeToRealtime } = useChat();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +127,19 @@ export default function OrdersScreen() {
       load({ silent: true });
     }, [load])
   );
+
+  // Live order updates pushed over the chat hub — a farmer marking an order
+  // Shipped/Delivered on the web dashboard shows up here immediately instead
+  // of only after the buyer manually pulls to refresh.
+  useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type === 'orderCreated') {
+        setOrders((prev) => (prev.some((o) => o.id === event.order.id) ? prev : [event.order, ...prev]));
+      } else if (event.type === 'orderStatusChanged') {
+        setOrders((prev) => prev.map((o) => (o.id === event.order.id ? event.order : o)));
+      }
+    });
+  }, [subscribeToRealtime]);
 
   const onRefresh = () => {
     setRefreshing(true);

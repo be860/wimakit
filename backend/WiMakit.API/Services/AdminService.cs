@@ -9,12 +9,18 @@ namespace WiMakit.API.Services
     {
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<AdminService> _logger;
 
-        public AdminService(AppDbContext context, IEmailService emailService, ILogger<AdminService> logger)
+        public AdminService(
+            AppDbContext context,
+            IEmailService emailService,
+            INotificationService notificationService,
+            ILogger<AdminService> logger)
         {
             _context = context;
             _emailService = emailService;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -433,9 +439,10 @@ namespace WiMakit.API.Services
 
         public async Task<bool> UpdateProductStatusAsync(int id, string status, string? note, int adminId, string adminName)
         {
-            var product = await _context.Produces.FirstOrDefaultAsync(p => p.Id == id);
+            var product = await _context.Produces.Include(p => p.Farmer).FirstOrDefaultAsync(p => p.Id == id);
             if (product == null) return false;
 
+            var wasLive = product.Status == "Live";
             product.Status = status;
             product.UpdatedAt = DateTime.UtcNow;
 
@@ -451,6 +458,21 @@ namespace WiMakit.API.Services
             });
 
             await _context.SaveChangesAsync();
+
+            // A listing going Live is the moment it actually becomes visible to
+            // buyers — that's "a new produce added" from the mobile app's point
+            // of view, not the farmer's raw (still-Pending) submission.
+            if (status == "Live" && !wasLive)
+            {
+                await _notificationService.CreateNotificationAsync(new CreateNotificationRequest
+                {
+                    UserId = null,
+                    Type = "product",
+                    Title = "New produce listed",
+                    Body = $"{product.Farmer?.FullName ?? "A farmer"} just listed {product.Name} on WiMakit — check it out!"
+                });
+            }
+
             return true;
         }
 

@@ -1,5 +1,7 @@
 using WiMakit.API.Data;
+using WiMakit.API.Hubs;
 using WiMakit.API.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -8,10 +10,23 @@ namespace WiMakit.API.Services
     public class PaymentService : IPaymentService
     {
         private readonly AppDbContext _context;
+        private readonly IHubContext<ChatHub> _hub;
 
-        public PaymentService(AppDbContext context)
+        public PaymentService(AppDbContext context, IHubContext<ChatHub> hub)
         {
             _context = context;
+            _hub = hub;
+        }
+
+        // Pushes an order update to both the farmer and the buyer's connected
+        // devices, same per-user-group pattern MessageService uses for chat.
+        private Task PushOrderUpdateAsync(int farmerId, int buyerId, string eventName, OrderDTO payload)
+        {
+            var groups = farmerId == buyerId
+                ? new[] { ChatHub.UserGroup(farmerId) }
+                : new[] { ChatHub.UserGroup(farmerId), ChatHub.UserGroup(buyerId) };
+
+            return _hub.Clients.Groups(groups).SendAsync(eventName, payload);
         }
 
         public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request)
@@ -70,7 +85,7 @@ namespace WiMakit.API.Services
             produce.UpdatedAt = DateTime.UtcNow;
 
             // Notify farmer
-            _context.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = produce.FarmerId,
                 Type = "order",
@@ -78,9 +93,28 @@ namespace WiMakit.API.Services
                 Body = $"Order {orderNumber} placed for {request.Quantity} {produce.Unit} of {produce.Name}.",
                 IsUnread = true,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _context.Notifications.Add(notification);
 
             await _context.SaveChangesAsync();
+
+            // Live-push both the notification and the order itself so the
+            // farmer's dashboard shows the new order without a refresh.
+            await _hub.Clients.Group(ChatHub.UserGroup(produce.FarmerId)).SendAsync("NewNotification", new
+            {
+                notification.Id,
+                notification.UserId,
+                notification.Type,
+                notification.Title,
+                notification.Body,
+                notification.CreatedAt,
+                notification.IsUnread
+            });
+
+            await _context.Entry(order).Reference(o => o.Produce).LoadAsync();
+            await _context.Entry(order).Reference(o => o.Buyer).LoadAsync();
+            await _context.Entry(order).Reference(o => o.Farmer).LoadAsync();
+            await PushOrderUpdateAsync(order.FarmerId, order.BuyerId, "OrderCreated", MapToDTO(order));
 
             return new PaymentResult
             {
@@ -116,13 +150,17 @@ namespace WiMakit.API.Services
 
         public async Task<bool> UpdateOrderStatusAsync(int orderId, int userId, string newStatus)
         {
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId && (o.FarmerId == userId || o.BuyerId == userId));
+            var order = await _context.Orders
+                .Include(o => o.Produce)
+                .Include(o => o.Buyer)
+                .Include(o => o.Farmer)
+                .FirstOrDefaultAsync(o => o.Id == orderId && (o.FarmerId == userId || o.BuyerId == userId));
             if (order == null) return false;
 
             order.Status = newStatus;
 
             // Notify buyer on status change
-            _context.Notifications.Add(new Notification
+            var notification = new Notification
             {
                 UserId = order.BuyerId,
                 Type = "order",
@@ -130,9 +168,27 @@ namespace WiMakit.API.Services
                 Body = $"Your order {order.OrderNumber} is now {newStatus}.",
                 IsUnread = true,
                 CreatedAt = DateTime.UtcNow
-            });
+            };
+            _context.Notifications.Add(notification);
 
             await _context.SaveChangesAsync();
+
+            // Live-push both the notification and the updated order so neither
+            // side needs to refresh to see the new status — the buyer tracking
+            // it in the mobile app, and the farmer's own web dashboard if they
+            // (or another admin) changed it from a different tab/device.
+            await _hub.Clients.Group(ChatHub.UserGroup(order.BuyerId)).SendAsync("NewNotification", new
+            {
+                notification.Id,
+                notification.UserId,
+                notification.Type,
+                notification.Title,
+                notification.Body,
+                notification.CreatedAt,
+                notification.IsUnread
+            });
+            await PushOrderUpdateAsync(order.FarmerId, order.BuyerId, "OrderStatusChanged", MapToDTO(order));
+
             return true;
         }
 

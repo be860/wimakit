@@ -5,18 +5,23 @@ import * as signalR from '@microsoft/signalr'
 
 import { API_BASE_URL } from '@/lib/api-client'
 import { useAuth } from '@/components/providers/auth-provider'
-import type { Message } from '@/lib/farmer/api'
+import type { Message, FarmerOrder, FarmerNotification } from '@/lib/farmer/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 // Mirrors the mobile app's ChatContext event contract — see
 // mobile/src/context/chat-context.tsx and backend Hubs/ChatHub.cs for the
-// server-side broadcast contract this listens to.
+// server-side broadcast contract this listens to. Despite the name, the hub
+// is a general per-user push channel now, not just chat — it also carries
+// order and notification updates.
 
 export type ChatRealtimeEvent =
   | { type: 'received'; message: Message }
   | { type: 'edited'; message: Message }
   | { type: 'deleted'; message: Message }
   | { type: 'read'; messageIds: number[]; readerId: number; otherUserId: number }
+  | { type: 'orderCreated'; order: FarmerOrder }
+  | { type: 'orderStatusChanged'; order: FarmerOrder }
+  | { type: 'notification'; notification: FarmerNotification }
 
 type ChatEventListener = (event: ChatRealtimeEvent) => void
 
@@ -75,6 +80,11 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
       (payload: { messageIds: number[]; readerId: number; otherUserId: number }) => {
         emit({ type: 'read', ...payload })
       },
+    )
+    connection.on('OrderCreated', (order: FarmerOrder) => emit({ type: 'orderCreated', order }))
+    connection.on('OrderStatusChanged', (order: FarmerOrder) => emit({ type: 'orderStatusChanged', order }))
+    connection.on('NewNotification', (notification: FarmerNotification) =>
+      emit({ type: 'notification', notification }),
     )
 
     connection.start().catch(() => {

@@ -63,7 +63,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const { totalUnread } = useChat();
+  const { totalUnread, subscribeToRealtime } = useChat();
 
   const [featured, setFeatured] = useState<Produce[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +97,14 @@ export default function HomeScreen() {
       .then((data) => setHasUnreadNotifications(data.some((n) => n.isUnread)))
       .catch(() => {});
   }, []);
+
+  // Flip the bell dot on live too, so a new order update or produce listing
+  // shows up without the buyer needing to reopen the app.
+  useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type === 'notification') setHasUnreadNotifications(true);
+    });
+  }, [subscribeToRealtime]);
 
   const onRefresh = async () => {
     setRefreshing(true);

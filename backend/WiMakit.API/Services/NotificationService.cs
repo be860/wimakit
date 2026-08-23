@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using WiMakit.API.Data;
 using WiMakit.API.DTOs;
+using WiMakit.API.Hubs;
 using WiMakit.API.Models;
 
 namespace WiMakit.API.Services
@@ -15,10 +17,12 @@ namespace WiMakit.API.Services
     public class NotificationService : INotificationService
     {
         private readonly AppDbContext _context;
+        private readonly IHubContext<ChatHub> _hub;
 
-        public NotificationService(AppDbContext context)
+        public NotificationService(AppDbContext context, IHubContext<ChatHub> hub)
         {
             _context = context;
+            _hub = hub;
         }
 
         public async Task<IEnumerable<NotificationDTO>> GetUserNotificationsAsync(int userId)
@@ -66,7 +70,7 @@ namespace WiMakit.API.Services
             _context.Notifications.Add(notif);
             await _context.SaveChangesAsync();
 
-            return new NotificationDTO
+            var dto = new NotificationDTO
             {
                 Id = notif.Id,
                 UserId = notif.UserId,
@@ -76,6 +80,20 @@ namespace WiMakit.API.Services
                 CreatedAt = notif.CreatedAt,
                 IsUnread = notif.IsUnread
             };
+
+            // Push live so the bell/badge updates without a refresh — a specific
+            // UserId goes to just that user's devices, null (broadcast) goes to
+            // everyone currently connected.
+            if (notif.UserId.HasValue)
+            {
+                await _hub.Clients.Group(ChatHub.UserGroup(notif.UserId.Value)).SendAsync("NewNotification", dto);
+            }
+            else
+            {
+                await _hub.Clients.All.SendAsync("NewNotification", dto);
+            }
+
+            return dto;
         }
     }
 }

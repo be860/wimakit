@@ -6,6 +6,7 @@ import { MapPin, Search, Truck } from 'lucide-react'
 
 import { farmerApi, LE, type FarmerOrder } from '@/lib/farmer/api'
 import { getErrorMessage } from '@/lib/api-client'
+import { useChatHub } from '@/components/providers/chat-hub-provider'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ const STATUS_FILTERS = [
 ]
 
 export function OrdersView() {
+  const { subscribeToRealtime } = useChatHub()
   const [sales, setSales] = React.useState<FarmerOrder[]>([])
   const [status, setStatus] = React.useState<string>('All')
   const [query, setQuery] = React.useState('')
@@ -57,6 +59,19 @@ export function OrdersView() {
   React.useEffect(() => {
     fetchSales()
   }, [fetchSales])
+
+  // A new order coming in, or its status changing (from this farmer's own
+  // web dashboard elsewhere, or another device), shows up live instead of
+  // needing a page reload.
+  React.useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type === 'orderCreated') {
+        setSales((prev) => (prev.some((o) => o.id === event.order.id) ? prev : [event.order, ...prev]))
+      } else if (event.type === 'orderStatusChanged') {
+        setSales((prev) => prev.map((o) => (o.id === event.order.id ? event.order : o)))
+      }
+    })
+  }, [subscribeToRealtime])
 
   const visible = sales.filter((o) => {
     const matchStatus = status === 'All' || o.status === status

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Bell, CheckCheck, Megaphone, MessageSquare, Package, ShoppingBag } from 'lucide-react'
 
 import { farmerApi, type FarmerNotification } from '@/lib/farmer/api'
+import { useChatHub } from '@/components/providers/chat-hub-provider'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/farmer/primitives'
@@ -32,6 +33,7 @@ const FILTERS: Array<{ value: string; label: string }> = [
 ]
 
 export function NotificationsFeed() {
+  const { subscribeToRealtime } = useChatHub()
   const [items, setItems] = React.useState<FarmerNotification[]>([])
   const [filter, setFilter] = React.useState<string>('all')
 
@@ -45,6 +47,16 @@ export function NotificationsFeed() {
   React.useEffect(() => {
     fetchNotifications()
   }, [fetchNotifications])
+
+  // New notifications pushed over the chat hub land at the top of the feed live.
+  React.useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type !== 'notification') return
+      setItems((prev) =>
+        prev.some((n) => n.id === event.notification.id) ? prev : [event.notification, ...prev],
+      )
+    })
+  }, [subscribeToRealtime])
 
   const visible = items.filter((n) => {
     if (filter === 'all') return true

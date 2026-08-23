@@ -15,6 +15,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS, FONTS } from '../constants/theme';
 import { notificationsApi, NotificationItem } from '../services/notifications-api';
 import { getErrorMessage } from '../services/api-client';
+import { useChat } from '../context/chat-context';
 
 const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   order: 'receipt-outline',
@@ -36,6 +37,7 @@ function formatTime(iso: string): string {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { subscribeToRealtime } = useChat();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,6 +59,17 @@ export default function NotificationsScreen() {
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [load]);
+
+  // New notifications (order updates, new produce listings, etc.) pushed
+  // over the chat hub land at the top of the list live.
+  useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type !== 'notification') return;
+      setNotifications((prev) =>
+        prev.some((n) => n.id === event.notification.id) ? prev : [event.notification, ...prev]
+      );
+    });
+  }, [subscribeToRealtime]);
 
   const onRefresh = async () => {
     setRefreshing(true);

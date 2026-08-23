@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bell, ChevronDown, LogOut, Search, Settings, UserCog, X } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
+import { useChatHub } from '@/components/providers/chat-hub-provider'
 import { farmerApi, type FarmerNotification } from '@/lib/farmer/api'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -35,6 +36,7 @@ const notifDot: Record<string, string> = {
 export function FarmerTopbar() {
   const router = useRouter()
   const { user, logout } = useAuth()
+  const { subscribeToRealtime } = useChatHub()
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<FarmerNotification[]>([])
 
@@ -44,6 +46,17 @@ export function FarmerTopbar() {
       .then((data) => setNotifications(data || []))
       .catch(() => setNotifications([]))
   }, [])
+
+  // New notifications pushed over the chat hub land at the top of the bell
+  // dropdown live, without waiting for the next page load.
+  React.useEffect(() => {
+    return subscribeToRealtime((event) => {
+      if (event.type !== 'notification') return
+      setNotifications((prev) =>
+        prev.some((n) => n.id === event.notification.id) ? prev : [event.notification, ...prev],
+      )
+    })
+  }, [subscribeToRealtime])
 
   const unread = notifications.filter((n) => n.isUnread).length
   const initials = user?.fullName

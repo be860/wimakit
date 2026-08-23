@@ -116,30 +116,42 @@ export function FarmerSidebar({
       .catch(() => {})
   }, [])
 
+  const refreshOrderCount = React.useCallback(() => {
+    farmerApi.getFarmerSales()
+      .then((s) => setCounts((c) => ({ ...c, orders: s?.filter((o) => o.status === 'Pending').length || 0 })))
+      .catch(() => {})
+  }, [])
+
+  const refreshNotificationCount = React.useCallback(() => {
+    farmerApi.getNotifications()
+      .then((n) => setCounts((c) => ({ ...c, notifications: n?.filter((item) => item.isUnread).length || 0 })))
+      .catch(() => {})
+  }, [])
+
   React.useEffect(() => {
     if (user?.id) {
       farmerApi.getFarmerProduce(user.id)
         .then((p) => setCounts((c) => ({ ...c, products: p?.length || 0 })))
         .catch(() => {})
     }
-    farmerApi.getFarmerSales()
-      .then((s) => setCounts((c) => ({ ...c, orders: s?.filter((o) => o.status === 'Pending').length || 0 })))
-      .catch(() => {})
+    refreshOrderCount()
     refreshMessageCount()
-    farmerApi.getNotifications()
-      .then((n) => setCounts((c) => ({ ...c, notifications: n?.filter((item) => item.isUnread).length || 0 })))
-      .catch(() => {})
-  }, [user?.id, refreshMessageCount])
+    refreshNotificationCount()
+  }, [user?.id, refreshOrderCount, refreshMessageCount, refreshNotificationCount])
 
-  // Keep the Messages badge live: a new message pushed over the chat hub, or
-  // the current conversation being marked read, both change the unread total.
+  // Keep every badge live: new/updated orders, a chat message arriving or
+  // being read, and new notifications all change one of these counts.
   React.useEffect(() => {
     return subscribeToRealtime((event) => {
       if (event.type === 'received' || event.type === 'read') {
         refreshMessageCount()
+      } else if (event.type === 'orderCreated' || event.type === 'orderStatusChanged') {
+        refreshOrderCount()
+      } else if (event.type === 'notification') {
+        refreshNotificationCount()
       }
     })
-  }, [subscribeToRealtime, refreshMessageCount])
+  }, [subscribeToRealtime, refreshMessageCount, refreshOrderCount, refreshNotificationCount])
 
   const farmerPrimaryNav: FarmerNavItem[] = [
     { href: '/farmer', label: 'Dashboard', icon: LayoutDashboard },

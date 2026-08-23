@@ -4,15 +4,25 @@ import { apiClient, API_BASE_URL, TOKEN_KEY } from '../services/api-client';
 import { getStorageItem } from '../services/storage';
 import { useAuth } from './auth-context';
 import type { MessageDTO as ServerMessageDTO, ConversationDTO as ServerConversationDTO } from '../services/messages-api';
+import type { Order } from '../services/orders-api';
+import type { NotificationItem } from '../services/notifications-api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-/** Events pushed by the ChatHub (see backend Hubs/ChatHub.cs for the contract). */
+/**
+ * Events pushed by ChatHub (see backend Hubs/ChatHub.cs). Despite the name,
+ * the hub is a general per-user push channel now, not just chat — it also
+ * carries order and notification updates so the app never needs a manual
+ * refresh to see something that changed server-side.
+ */
 export type ChatRealtimeEvent =
   | { type: 'received'; message: ServerMessageDTO }
   | { type: 'edited'; message: ServerMessageDTO }
   | { type: 'deleted'; message: ServerMessageDTO }
-  | { type: 'read'; messageIds: number[]; readerId: number; otherUserId: number };
+  | { type: 'read'; messageIds: number[]; readerId: number; otherUserId: number }
+  | { type: 'orderCreated'; order: Order }
+  | { type: 'orderStatusChanged'; order: Order }
+  | { type: 'notification'; notification: NotificationItem };
 
 type ChatEventListener = (event: ChatRealtimeEvent) => void;
 
@@ -108,6 +118,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         emit({ type: 'read', ...payload });
         refreshUnread();
       }
+    );
+    connection.on('OrderCreated', (order: Order) => emit({ type: 'orderCreated', order }));
+    connection.on('OrderStatusChanged', (order: Order) => emit({ type: 'orderStatusChanged', order }));
+    connection.on('NewNotification', (notification: NotificationItem) =>
+      emit({ type: 'notification', notification })
     );
 
     connection.start().catch(() => {
