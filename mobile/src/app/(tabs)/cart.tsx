@@ -24,11 +24,16 @@ import { formatLE } from '../../services/produce-api';
 import { ordersApi } from '../../services/orders-api';
 import { getErrorMessage } from '../../services/api-client';
 import { PillTextInput } from '../../components/common/PillTextInput';
-import { PillSelectInput } from '../../components/common/PillSelectInput';
+import { PillSelectInput, PillSelectOption } from '../../components/common/PillSelectInput';
 import { PrimaryButton } from '../../components/common/PrimaryButton';
 
 const DELIVERY_FEE = 15000;
-const PAYMENT_METHODS = ['Orange Money', 'Africell Money', 'QMoney', 'Cash on Delivery'];
+const PAYMENT_METHODS: PillSelectOption[] = [
+  { value: 'Orange Money', icon: require('../../../assets/images/payment-methods/orange-money.png') },
+  { value: 'Africell Money', icon: require('../../../assets/images/payment-methods/africell-money.png') },
+  { value: 'QMoney', icon: require('../../../assets/images/payment-methods/qmoney.png') },
+  { value: 'Cash on Delivery', ioniconName: 'cash-outline' },
+];
 
 export default function CartScreen() {
   const router = useRouter();
@@ -36,7 +41,7 @@ export default function CartScreen() {
   const { cart, hydrating, removeFromCart, updateQuantity, itemCount, totalAmount } = useCart();
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0].value);
   const [accountNumber, setAccountNumber] = useState(user?.phone || '');
   const [district, setDistrict] = useState(user?.location || '');
   const [deliveryAddress, setDeliveryAddress] = useState('');

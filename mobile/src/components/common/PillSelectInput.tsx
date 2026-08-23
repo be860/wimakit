@@ -5,21 +5,62 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  Image,
+  ImageSourcePropType,
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, FONTS } from '../../constants/theme';
 
+/**
+ * An option can just be a label (existing behavior — e.g. business types),
+ * or carry its own icon so lists like payment methods can show the real
+ * brand mark instead of a generic glyph.
+ */
+export interface PillSelectOption {
+  value: string;
+  /** A real brand mark (e.g. Orange Money, QMoney, Afrimoney logos). */
+  icon?: ImageSourcePropType;
+  /** Fallback for options with no brand image, e.g. Cash on Delivery. */
+  ioniconName?: keyof typeof Ionicons.glyphMap;
+}
+
 interface PillSelectInputProps {
   label?: string;
   placeholder?: string;
   leadingIcon?: keyof typeof Ionicons.glyphMap;
   value: string;
-  options: string[];
+  options: (string | PillSelectOption)[];
   onSelect: (value: string) => void;
   error?: string;
   modalTitle?: string;
+}
+
+function normalizeOption(option: string | PillSelectOption): PillSelectOption {
+  return typeof option === 'string' ? { value: option } : option;
+}
+
+function OptionIcon({
+  option,
+  size,
+  style,
+}: {
+  option: PillSelectOption;
+  size: number;
+  style: { width: number; height: number; borderRadius: number };
+}) {
+  if (option.icon) {
+    return <Image source={option.icon} style={style} resizeMode="contain" />;
+  }
+  if (option.ioniconName) {
+    return (
+      <View style={[style, styles.ioniconBadge]}>
+        <Ionicons name={option.ioniconName} size={size * 0.6} color={COLORS.primary} />
+      </View>
+    );
+  }
+  return null;
 }
 
 export function PillSelectInput({
@@ -33,6 +74,8 @@ export function PillSelectInput({
   modalTitle,
 }: PillSelectInputProps) {
   const [visible, setVisible] = useState(false);
+  const normalizedOptions = options.map(normalizeOption);
+  const selectedOption = normalizedOptions.find((o) => o.value === value);
 
   return (
     <View style={styles.container}>
@@ -47,13 +90,17 @@ export function PillSelectInput({
         onPress={() => setVisible(true)}
         style={[styles.inputWrapper, error ? styles.inputErrorBorder : null]}
       >
-        {leadingIcon && (
-          <Ionicons
-            name={leadingIcon}
-            size={20}
-            color={COLORS.textSecondary}
-            style={styles.leadingIcon}
-          />
+        {selectedOption?.icon || selectedOption?.ioniconName ? (
+          <OptionIcon option={selectedOption} size={22} style={styles.triggerOptionIcon} />
+        ) : (
+          leadingIcon && (
+            <Ionicons
+              name={leadingIcon}
+              size={20}
+              color={COLORS.textSecondary}
+              style={styles.leadingIcon}
+            />
+          )
         )}
 
         <Text
@@ -81,27 +128,28 @@ export function PillSelectInput({
             </View>
 
             <FlatList
-              data={options}
-              keyExtractor={(item) => item}
+              data={normalizedOptions}
+              keyExtractor={(item) => item.value}
               style={styles.optionsList}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={styles.optionRow}
                   onPress={() => {
-                    onSelect(item);
+                    onSelect(item.value);
                     setVisible(false);
                   }}
                 >
+                  <OptionIcon option={item} size={28} style={styles.optionIcon} />
                   <Text
                     style={[
                       styles.optionText,
-                      item === value ? styles.optionTextSelected : null,
+                      item.value === value ? styles.optionTextSelected : null,
                     ]}
                   >
-                    {item}
+                    {item.value}
                   </Text>
-                  {item === value && (
+                  {item.value === value && (
                     <Ionicons name="checkmark" size={18} color={COLORS.primary} />
                   )}
                 </TouchableOpacity>
@@ -198,13 +246,32 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F2F7',
   },
+  optionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+  },
+  triggerOptionIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  ioniconBadge: {
+    backgroundColor: '#F0F4FC',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionText: {
+    flex: 1,
     fontSize: 14,
     fontFamily: FONTS.bodyRegular,
     color: '#333333',
