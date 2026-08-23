@@ -381,7 +381,7 @@ export default function OrdersScreen() {
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.reportModalContent}>
             <View style={styles.modalHeader}>
@@ -461,7 +461,15 @@ export default function OrdersScreen() {
         transparent
         onRequestClose={() => !submittingReview && setReviewModalOrder(null)}
       >
-        <View style={styles.reviewModalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.reviewModalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView
+            contentContainerStyle={styles.reviewModalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.reviewModalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle} allowFontScaling={false}>
@@ -531,7 +539,8 @@ export default function OrdersScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -925,8 +934,12 @@ const styles = StyleSheet.create({
   reviewModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  reviewModalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   reviewModalContent: {
     backgroundColor: COLORS.surface,

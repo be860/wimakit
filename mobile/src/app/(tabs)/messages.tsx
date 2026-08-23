@@ -32,6 +32,7 @@ import Toast from 'react-native-toast-message';
 import { COLORS, FONTS, RADIUS } from '../../constants/theme';
 import { getErrorMessage } from '../../services/api-client';
 import { useAuth } from '../../context/auth-context';
+import { useChat } from '../../context/chat-context';
 import { messagesApi, MessageDTO, ConversationDTO } from '../../services/messages-api';
 
 // ────────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ function VoiceMessageBubble({
 
 export default function MessagesScreen() {
   const { user } = useAuth();
+  const { subscribeToRealtime } = useChat();
   const myUserId = user?.id ?? null;
 
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
@@ -178,6 +180,47 @@ export default function MessagesScreen() {
     await loadConversations();
     setRefreshing(false);
   };
+
+  // Live updates pushed over the SignalR chat hub. `messages` already only
+  // holds the currently open thread, so edit/delete/read updates can just map
+  // over it by id — that's a no-op for events belonging to some other thread.
+  useEffect(() => {
+    const unsubscribe = subscribeToRealtime((event) => {
+      const openUserId = activeConv?.userId ?? null;
+
+      if (event.type === 'received') {
+        const msg = event.message;
+        const belongsToOpenThread =
+          openUserId != null && (msg.senderId === openUserId || msg.receiverId === openUserId);
+
+        if (belongsToOpenThread) {
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+          if (msg.senderId === openUserId && msg.receiverId === myUserId) {
+            messagesApi.markAsRead(msg.id).catch(() => {});
+          }
+        }
+        loadConversations();
+        return;
+      }
+
+      if (event.type === 'edited' || event.type === 'deleted') {
+        const msg = event.message;
+        setMessages((prev) => prev.map((m) => (m.id === msg.id ? msg : m)));
+        loadConversations();
+        return;
+      }
+
+      // 'read' — flip read receipts for messages in the open thread; a no-op
+      // if none of the ids are currently displayed.
+      setMessages((prev) =>
+        prev.map((m) => (event.messageIds.includes(m.id) ? { ...m, isRead: true } : m))
+      );
+    });
+
+    return unsubscribe;
+  }, [activeConv, myUserId, subscribeToRealtime, loadConversations]);
 
   const openConversation = async (conv: ConversationDTO) => {
     setActiveConv(conv);
@@ -601,7 +644,7 @@ export default function MessagesScreen() {
 
           <KeyboardAvoidingView
             style={styles.chatKeyboard}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
             {/* Messages */}
             <ScrollView

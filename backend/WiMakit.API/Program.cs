@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using WiMakit.API.Data;
 using WiMakit.API.Extensions;
+using WiMakit.API.Hubs;
 using WiMakit.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -114,6 +115,9 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>("database");
 
+// ── SignalR (realtime chat push) ─────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 // ── Custom Application Services ───────────────────────────────────────────────
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IEmailService, EmailService>();
@@ -176,6 +180,24 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.FromSeconds(30),
         RoleClaimType = "role"
+    };
+
+    // SignalR's WebSocket transport can't attach an Authorization header, so
+    // the client sends the token as ?access_token=... instead. Only honor that
+    // fallback for the hub path — every other endpoint keeps requiring a real
+    // Authorization header.
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            if (!string.IsNullOrEmpty(accessToken) &&
+                context.HttpContext.Request.Path.StartsWithSegments("/hubs/chat"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -281,6 +303,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<WiMakit.API.Middleware.RequestAuditMiddleware>();
 app.MapControllers().RequireRateLimiting("api-general");
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapHealthChecks("/health");
 
 using (var scope = app.Services.CreateScope())

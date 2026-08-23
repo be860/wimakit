@@ -1,35 +1,23 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { apiClient } from '../services/api-client';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import * as signalR from '@microsoft/signalr';
+import { apiClient, API_BASE_URL, TOKEN_KEY } from '../services/api-client';
+import { getStorageItem } from '../services/storage';
+import { useAuth } from './auth-context';
+import type { MessageDTO as ServerMessageDTO, ConversationDTO as ServerConversationDTO } from '../services/messages-api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface MessageDTO {
-  id: number;
-  senderId: number;
-  senderName: string;
-  receiverId: number;
-  receiverName: string;
-  produceId?: number;
-  produceName?: string;
-  content: string;
-  isRead: boolean;
-  createdAt: string;
-}
+/** Events pushed by the ChatHub (see backend Hubs/ChatHub.cs for the contract). */
+export type ChatRealtimeEvent =
+  | { type: 'received'; message: ServerMessageDTO }
+  | { type: 'edited'; message: ServerMessageDTO }
+  | { type: 'deleted'; message: ServerMessageDTO }
+  | { type: 'read'; messageIds: number[]; readerId: number; otherUserId: number };
 
-export interface ConversationDTO {
-  userId: number;
-  userName: string;
-  userLocation?: string;
-  userRole: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
-  produceId?: number;
-  produceName?: string;
-}
+type ChatEventListener = (event: ChatRealtimeEvent) => void;
 
 interface ChatContextType {
-  /** Total unread count across all conversations (refreshed on load) */
+  /** Total unread count across all conversations (refreshed on load and on realtime events) */
   totalUnread: number;
 
   /**
@@ -46,22 +34,98 @@ interface ChatContextType {
 
   /** Refresh total unread count from the backend */
   refreshUnread: () => Promise<void>;
+
+  /**
+   * Subscribe to realtime message events pushed over the SignalR chat hub.
+   * Returns an unsubscribe function. Screens (e.g. the messages tab) use this
+   * to update an open conversation live instead of polling.
+   */
+  subscribeToRealtime: (listener: ChatEventListener) => () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAuth();
   const [totalUnread, setTotalUnread] = useState(0);
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const listenersRef = useRef<Set<ChatEventListener>>(new Set());
 
   const refreshUnread = useCallback(async () => {
     try {
-      const conversations = await apiClient.get<ConversationDTO[]>('/api/messages/conversations');
+      const conversations = await apiClient.get<ServerConversationDTO[]>('/api/messages/conversations');
       const total = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
       setTotalUnread(total);
     } catch {
       // Silently ignore — could be called before auth
     }
   }, []);
+
+  const subscribeToRealtime = useCallback((listener: ChatEventListener) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+
+  // Open one SignalR connection per signed-in session and keep it alive for the
+  // lifetime of that session — screens subscribe/unsubscribe to it rather than
+  // each owning a connection, so switching tabs doesn't drop the socket.
+  useEffect(() => {
+    if (!token || !user) {
+      connectionRef.current?.stop().catch(() => {});
+      connectionRef.current = null;
+      return;
+    }
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${API_BASE_URL}/hubs/chat`, {
+        accessTokenFactory: async () => (await getStorageItem(TOKEN_KEY)) ?? '',
+        transport: signalR.HttpTransportType.WebSockets,
+        skipNegotiation: true,
+      })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    const emit = (event: ChatRealtimeEvent) => {
+      listenersRef.current.forEach((listener) => listener(event));
+    };
+
+    connection.on('ReceiveMessage', (message: ServerMessageDTO) => {
+      emit({ type: 'received', message });
+      if (message.receiverId === user.id) refreshUnread();
+    });
+    connection.on('MessageEdited', (message: ServerMessageDTO) => {
+      emit({ type: 'edited', message });
+    });
+    connection.on('MessageDeleted', (message: ServerMessageDTO) => {
+      emit({ type: 'deleted', message });
+    });
+    connection.on(
+      'MessagesRead',
+      (payload: { messageIds: number[]; readerId: number; otherUserId: number }) => {
+        emit({ type: 'read', ...payload });
+        refreshUnread();
+      }
+    );
+
+    connection.start().catch(() => {
+      // Realtime is best-effort — the REST endpoints still work standalone, so a
+      // failed/offline socket just falls back to manual refresh.
+    });
+
+    connectionRef.current = connection;
+
+    return () => {
+      connection.stop().catch(() => {});
+      connectionRef.current = null;
+    };
+    // Deliberately depend on user?.id, not `user` — auth-context hands back a
+    // new user object on every profile refresh, which would otherwise tear
+    // down and reopen the socket far more often than the identity actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, user?.id, refreshUnread]);
 
   const sendMessage = useCallback(
     async (
@@ -71,7 +135,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       _produceName?: string,
       produceId?: number
     ) => {
-      await apiClient.post<MessageDTO>('/api/messages', {
+      await apiClient.post<ServerMessageDTO>('/api/messages', {
         receiverId,
         content,
         produceId: produceId ?? undefined,
@@ -81,7 +145,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ChatContext.Provider value={{ totalUnread, sendMessage, refreshUnread }}>
+    <ChatContext.Provider value={{ totalUnread, sendMessage, refreshUnread, subscribeToRealtime }}>
       {children}
     </ChatContext.Provider>
   );

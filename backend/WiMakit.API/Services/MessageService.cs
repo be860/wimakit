@@ -1,6 +1,8 @@
 using WiMakit.API.Data;
 using WiMakit.API.DTOs;
+using WiMakit.API.Hubs;
 using WiMakit.API.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace WiMakit.API.Services
@@ -8,10 +10,23 @@ namespace WiMakit.API.Services
     public class MessageService : IMessageService
     {
         private readonly AppDbContext _context;
+        private readonly IHubContext<ChatHub> _hub;
 
-        public MessageService(AppDbContext context)
+        public MessageService(AppDbContext context, IHubContext<ChatHub> hub)
         {
             _context = context;
+            _hub = hub;
+        }
+
+        // Pushes to both participants' groups so every open device/tab for
+        // either person stays in sync, not just the one on the other end.
+        private Task PushToConversationAsync(int userIdA, int userIdB, string eventName, object payload)
+        {
+            var groups = userIdA == userIdB
+                ? new[] { ChatHub.UserGroup(userIdA) }
+                : new[] { ChatHub.UserGroup(userIdA), ChatHub.UserGroup(userIdB) };
+
+            return _hub.Clients.Groups(groups).SendAsync(eventName, payload);
         }
 
         public async Task<IEnumerable<ConversationDTO>> GetConversationsAsync(int userId)
@@ -65,6 +80,13 @@ namespace WiMakit.API.Services
                     msg.IsRead = true;
                 }
                 await _context.SaveChangesAsync();
+
+                await PushToConversationAsync(userId, otherUserId, "MessagesRead", new
+                {
+                    messageIds = unread.Select(m => m.Id).ToArray(),
+                    readerId = userId,
+                    otherUserId
+                });
             }
 
             return messages.Select(m => MapMessageToDTO(m)).ToList();
@@ -99,7 +121,9 @@ namespace WiMakit.API.Services
                 await _context.Entry(message).Reference(m => m.Produce).LoadAsync();
             }
 
-            return MapMessageToDTO(message);
+            var dto = MapMessageToDTO(message);
+            await PushToConversationAsync(message.SenderId, message.ReceiverId, "ReceiveMessage", dto);
+            return dto;
         }
 
         public async Task<bool> MarkAsReadAsync(int messageId, int userId)
@@ -111,6 +135,13 @@ namespace WiMakit.API.Services
             {
                 message.IsRead = true;
                 await _context.SaveChangesAsync();
+
+                await PushToConversationAsync(message.SenderId, message.ReceiverId, "MessagesRead", new
+                {
+                    messageIds = new[] { message.Id },
+                    readerId = userId,
+                    otherUserId = message.SenderId
+                });
             }
             return true;
         }
@@ -133,12 +164,19 @@ namespace WiMakit.API.Services
             message.EditedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return (MapMessageToDTO(message), null);
+            var dto = MapMessageToDTO(message);
+            await PushToConversationAsync(message.SenderId, message.ReceiverId, "MessageEdited", dto);
+            return (dto, null);
         }
 
         public async Task<bool> DeleteMessageAsync(int messageId, int userId)
         {
-            var message = await _context.Messages.FindAsync(messageId);
+            var message = await _context.Messages
+                .Include(m => m.Sender)
+                .Include(m => m.Receiver)
+                .Include(m => m.Produce)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+
             if (message == null || message.SenderId != userId) return false;
             if (message.IsDeleted) return true;
 
@@ -150,6 +188,7 @@ namespace WiMakit.API.Services
             message.AttachmentUrl = null;
             await _context.SaveChangesAsync();
 
+            await PushToConversationAsync(message.SenderId, message.ReceiverId, "MessageDeleted", MapMessageToDTO(message));
             return true;
         }
 
