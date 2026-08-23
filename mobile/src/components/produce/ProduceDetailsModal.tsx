@@ -6,6 +6,7 @@ import {
   Modal,
   Image,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   Alert,
   ActivityIndicator,
@@ -184,11 +185,18 @@ export function ProduceDetailsModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+      <View style={styles.overlay}>
+        {/* Backdrop tap-to-close as a separate sibling behind modalContent —
+            not a wrapper around it. A wrapping TouchableOpacity plus manual
+            onStartShouldSetResponder claiming (the previous approach) steals
+            the touch responder from the nested ScrollView before its pan
+            gesture can register, which is what made scrolling to the reviews
+            section feel stiff/unresponsive. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.modalContent}>
           <View style={styles.dragHandle} />
 
-          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false} bounces={false}>
+          <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
             {/* Produce Image */}
             <View style={styles.imageContainer}>
               {produce.imageUrl ? (
@@ -448,7 +456,7 @@ export function ProduceDetailsModal({
             </View>
           </ScrollView>
         </View>
-      </TouchableOpacity>
+      </View>
 
       {/* ── Write Review Modal ── */}
       <Modal
