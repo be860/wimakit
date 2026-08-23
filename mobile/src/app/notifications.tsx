@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Pressable,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -35,10 +38,21 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+function formatFullTime(iso: string): string {
+  return new Date(iso).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const { subscribeToRealtime } = useChat();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [viewingNotification, setViewingNotification] = useState<NotificationItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -78,6 +92,10 @@ export default function NotificationsScreen() {
   };
 
   const handlePress = (item: NotificationItem) => {
+    // Always open the full notification — this used to only mark read
+    // (and did nothing at all once a notification was already read), so
+    // there was no way to see body text past the 2-line preview.
+    setViewingNotification(item);
     if (!item.isUnread) return;
 
     // Flip it locally right away so the tap feels instant instead of waiting on the network.
@@ -172,6 +190,51 @@ export default function NotificationsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
+
+      <Modal
+        visible={!!viewingNotification}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setViewingNotification(null)}
+      >
+        <View style={styles.detailOverlay}>
+          {/* Backdrop as a sibling behind the sheet, not a wrapper around it —
+              wrapping would fight the ScrollView below for the touch
+              responder (same issue fixed in ProduceDetailsModal). */}
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setViewingNotification(null)} />
+          <View style={styles.detailSheet}>
+            {viewingNotification && (
+              <>
+                <View style={styles.detailDragHandle} />
+                <View style={styles.detailHeaderRow}>
+                  <View style={[styles.iconCircle, styles.iconCircleUnread]}>
+                    <Ionicons
+                      name={TYPE_ICON[viewingNotification.type] || 'notifications-outline'}
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                  <TouchableOpacity onPress={() => setViewingNotification(null)} hitSlop={8}>
+                    <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.detailTitle} allowFontScaling={false}>
+                  {viewingNotification.title}
+                </Text>
+                <Text style={styles.detailTime} allowFontScaling={false}>
+                  {formatFullTime(viewingNotification.createdAt)}
+                </Text>
+                <ScrollView style={styles.detailBodyScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={styles.detailBody} allowFontScaling={false}>
+                    {viewingNotification.body}
+                  </Text>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -286,5 +349,55 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodySemiBold,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  detailSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 28,
+    maxHeight: '75%',
+  },
+  detailDragHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
+    marginBottom: 16,
+  },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  detailTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.headingSemiBold,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  detailTime: {
+    fontSize: 12,
+    fontFamily: FONTS.bodyRegular,
+    color: COLORS.textSecondary,
+    marginBottom: 14,
+  },
+  detailBodyScroll: {
+    maxHeight: 260,
+  },
+  detailBody: {
+    fontSize: 14.5,
+    fontFamily: FONTS.bodyRegular,
+    color: '#333333',
+    lineHeight: 21,
   },
 });
